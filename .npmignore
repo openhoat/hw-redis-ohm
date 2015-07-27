@@ -1,0 +1,6 @@
+.idea
+.gitignore
+dist
+Gruntfile.js
+jshint.json
+test
