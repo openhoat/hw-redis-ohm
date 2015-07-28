@@ -9,10 +9,12 @@ var chai = require('chai')
   , log = logger.log
   , tUtil = require('./test-util');
 
-logger.registerLevels({redis: 6});
-logger.setLevel('redis');
-
 describe('hw-redis-ohm', function () {
+
+  before(function () {
+    logger.registerLevels({redis: 6});
+    logger.setLevel('redis');
+  });
 
   describe('ohm life cycle', function () {
 
