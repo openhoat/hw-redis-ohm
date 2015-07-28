@@ -14,6 +14,7 @@ describe('hw-redis-ohm', function () {
   before(function () {
     logger.registerLevels({redis: 6});
     logger.setLevel('redis');
+    log.info('logger initialized');
   });
 
   describe('ohm life cycle', function () {
