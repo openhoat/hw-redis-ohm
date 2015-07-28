@@ -1,0 +1,11 @@
+language: node_js
+
+node_js: 0.12
+
+services: redis-server
+
+before_script: "npm i -g mocha grunt-cli"
+
+script: "grunt test"
+
+after_script: "grunt coveralls"

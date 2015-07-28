@@ -6,13 +6,13 @@
   "author": "Olivier Penhoat <openhoat@gmail.com> (http://headwood.net/)",
   "repository": {
     "type": "git",
-    "url": "git@gitlab.laposte.io:laposte/lp-apim.git"
+    "url": "git@github.com:openhoat/hw-redis-ohm.git"
   },
   "bugs": {
-    "url": "http://gitlab.laposte.io/laposte/lp-apim/issues"
+    "url": "https://github.com/openhoat/hw-redis-ohm/issues"
   },
   "engines": {
-    "node": "node >= 0.10.x"
+    "node": "node >= 0.12.x"
   },
   "config": {
     "blanket": {
@@ -47,7 +47,6 @@
     "grunt-contrib-clean": "^0.6.0",
     "grunt-contrib-copy": "^0.8.0",
     "grunt-contrib-jshint": "^0.11.2",
-    "grunt-env": "^0.4.4",
     "grunt-mkdir": "^0.1.2",
     "grunt-mocha-cov": "^0.4.0",
     "jshint-stylish": "^1.0.2",
