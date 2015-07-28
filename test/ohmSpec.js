@@ -77,7 +77,7 @@ describe('hw-redis-ohm', function () {
   });
 
   describe('schemas', function () {
-    var schemas, Group, Contact, Dog;
+    var schemas;
 
     before(function () {
       schemas = {
@@ -176,11 +176,6 @@ describe('hw-redis-ohm', function () {
           return ohm.start({schemas: schemas});
         },
         function () {
-          Group = ohm.getEntityClass('group');
-          Contact = ohm.getEntityClass('contact');
-          Dog = ohm.getEntityClass('dog');
-        },
-        function () {
           return tUtil.cleanStore();
         });
     });
@@ -216,7 +211,7 @@ describe('hw-redis-ohm', function () {
         return p.do(
           function saveGroups() {
             return p.map(groups, function (value) {
-              var entity = Group.create(value);
+              var entity = ohm.Group.create(value);
               groupEntities.push(entity);
               return entity.save().then(function (result) {
                 expect(result).to.eql(entity);
@@ -227,7 +222,7 @@ describe('hw-redis-ohm', function () {
           function updateGroup() {
             var groupEntity = groupEntities[0];
             groupEntity.value.value = 'VIP';
-            return Group.update(groupEntity.value).then(function (result) {
+            return ohm.Group.update(groupEntity.value).then(function (result) {
               expect(result).to.eql(groupEntity);
             });
           },
@@ -242,7 +237,7 @@ describe('hw-redis-ohm', function () {
           },
           function saveContacts() {
             return p.map(contacts, function (value) {
-              var entity = Contact.create(value);
+              var entity = ohm.Contact.create(value);
               contactEntities.push(entity);
               return entity.save().then(function (result) {
                 expect(result).to.eql(entity);
@@ -251,7 +246,7 @@ describe('hw-redis-ohm', function () {
             });
           },
           function saveSameContact() {
-            var entity = Contact.create(contacts[0]);
+            var entity = ohm.Contact.create(contacts[0]);
             return new p(function (resolve) {
               entity.save().nodeify(function (err) {
                 expect(err).to.have.property('name', 'CONFLICT');
@@ -261,7 +256,7 @@ describe('hw-redis-ohm', function () {
           },
           function saveDogs() {
             return p.map(dogs, function (value, index) {
-              var entity = Dog.create(value);
+              var entity = ohm.Dog.create(value);
               entity.value.masterId = contactEntities[index].getId();
               dogEntities.push(entity);
               return entity.save().then(function (result) {
@@ -271,7 +266,7 @@ describe('hw-redis-ohm', function () {
             });
           },
           function saveSameDog() {
-            var entity = Dog.create({value: 'ted', masterId: contactEntities[0].getId()});
+            var entity = ohm.Dog.create({value: 'ted', masterId: contactEntities[0].getId()});
             return new p(function (resolve) {
               entity.save().nodeify(function (err) {
                 expect(err).to.have.property('name', 'CONFLICT');
@@ -281,7 +276,7 @@ describe('hw-redis-ohm', function () {
           },
           function loadGroupFromBadId() {
             return new p(function (resolve) {
-              Group.load('badid').nodeify(function (err) {
+              ohm.Group.load('badid').nodeify(function (err) {
                 expect(err).to.have.property('name', 'NOT_FOUND');
                 resolve();
               });
@@ -289,70 +284,70 @@ describe('hw-redis-ohm', function () {
           },
           function loadGroup() {
             return p.map(groupEntities, function (groupEntity) {
-              return Group.load(groupEntity.getId()).then(function (result) {
+              return ohm.Group.load(groupEntity.getId()).then(function (result) {
                 groupEntity.value.contactIds = result.value.contactIds;
                 expect(result).to.eql(groupEntity);
               });
             });
           },
           function listGroups() {
-            return Group.list('id').then(function (result) {
+            return ohm.Group.list('id').then(function (result) {
               expect(result).to.eql(groupEntities);
             });
           },
           function loadContact() {
             var entity = _.first(contactEntities);
-            return Contact.load(entity.getId()).then(function (result) {
+            return ohm.Contact.load(entity.getId()).then(function (result) {
               expect(result).to.eql(entity);
             });
           },
           function findContactOfDog() {
-            return Contact.findByIndex('dogIds', dogEntities[0].getId()).then(function (result) {
+            return ohm.Contact.findByIndex('dogIds', dogEntities[0].getId()).then(function (result) {
               expect(result).to.be.an('array').of.length(0);
             });
           },
           function findByContactUnknown() {
-            return Contact.findByIndex('unknown', 'hello').then(function (result) {
+            return ohm.Contact.findByIndex('unknown', 'hello').then(function (result) {
               expect(result).to.be.an('array').of.length(0);
             });
           },
           function findContactByBadEmail() {
-            return Contact.findByIndex('email', 'unknown@doe.com').then(function (result) {
+            return ohm.Contact.findByIndex('email', 'unknown@doe.com').then(function (result) {
               expect(result).to.be.an('array').of.length(0);
             });
           },
           function findContactByEmail() {
-            return Contact.findByIndex('email', 'john@doe.com').then(function (result) {
+            return ohm.Contact.findByIndex('email', 'john@doe.com').then(function (result) {
               expect(result).to.be.an('array').of.length(1);
               expect(_.first(result)).to.eql(_.first(contactEntities));
             });
           },
           function findContactByLastname() {
-            return Contact.findByIndex('lastname', 'doe').then(function (result) {
+            return ohm.Contact.findByIndex('lastname', 'doe').then(function (result) {
               expect(result).to.be.an('array').of.length(2);
             });
           },
           function findContactByGroup() {
-            return Contact.findByIndex('groupIds', groupEntities[0].getId()).then(function (result) {
+            return ohm.Contact.findByIndex('groupIds', groupEntities[0].getId()).then(function (result) {
               expect(result).to.be.an('array').of.length(2);
               expect(_.first(result)).to.eql(contactEntities[0]);
               expect(_.rest(result)[0]).to.eql(contactEntities[1]);
             });
           },
           function findContactByBadGroup() {
-            return Contact.findByIndex('groupIds', 'badid').then(function (result) {
+            return ohm.Contact.findByIndex('groupIds', 'badid').then(function (result) {
               expect(result).to.be.an('array').of.length(0);
             });
           },
           function findContactByOtherGroup() {
-            return Contact.findByIndex('groupIds', groupEntities[1].getId()).then(function (result) {
+            return ohm.Contact.findByIndex('groupIds', groupEntities[1].getId()).then(function (result) {
               expect(result).to.be.an('array').of.length(1);
               expect(_.first(result)).to.eql(contactEntities[1]);
             });
           },
           function deleteGroupByBadId() {
             return new p(function (resolve) {
-              Group.delete('badid').nodeify(function (err) {
+              ohm.Group.delete('badid').nodeify(function (err) {
                 expect(err).to.have.property('name', 'NOT_FOUND');
                 resolve();
               });
@@ -360,14 +355,14 @@ describe('hw-redis-ohm', function () {
           },
           function deleteGroups() {
             return p.map(groupEntities, function (entity) {
-              return Group.delete(entity.getId()).then(function (result) {
+              return ohm.Group.delete(entity.getId()).then(function (result) {
                 expect(result).to.equal(1);
               });
             });
           },
           function deleteContacts() {
             return p.map(contactEntities, function (entity) {
-              return Contact.delete(entity.getId()).then(function (result) {
+              return ohm.Contact.delete(entity.getId()).then(function (result) {
                 expect(result).to.equal(1);
               });
             });
