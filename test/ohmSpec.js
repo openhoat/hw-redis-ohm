@@ -5,12 +5,14 @@ var chai = require('chai')
   , _ = require('lodash')
   , p = require('hw-promise')
   , ohm = require('../lib/ohm')
-  , logger = require('hw-logger')
-  , log = logger.log
+//, logger = require('hw-logger')
+//, log = logger.log
   , tUtil = require('./test-util');
 
-logger.registerLevels({redis: 6});
-logger.setLevel('redis');
+/*
+ logger.registerLevels({redis: 6});
+ logger.setLevel('redis');
+ */
 
 describe('hw-redis-ohm', function () {
 
@@ -40,12 +42,11 @@ describe('hw-redis-ohm', function () {
           title: 'Group JSON schema',
           type: 'object',
           properties: {
-            name: {type: 'string'},
-            description: {type: 'string'}
+            value: {type: 'string'}
           },
           meta: {
             idGenerator: 'increment',
-            indexes: [{name: 'name', unique: true}],
+            indexes: [{name: 'value', unique: true}],
             links: [{
               type: 'hasMany',
               target: 'contact',
@@ -55,7 +56,7 @@ describe('hw-redis-ohm', function () {
             operations: {
               db: {
                 new: {
-                  required: ['name']
+                  required: ['value']
                 }
               }
             }
@@ -71,7 +72,10 @@ describe('hw-redis-ohm', function () {
           },
           meta: {
             idGenerator: 'increment',
-            indexes: [{name: 'email', unique: true}],
+            indexes: [
+              {name: 'email', unique: true},
+              {name: 'lastname'}
+            ],
             links: [{
               type: 'hasMany',
               target: 'group',
@@ -83,10 +87,11 @@ describe('hw-redis-ohm', function () {
               as: 'friendIds',
               foreignKey: 'friendIds'
             }, {
-              type: 'hasMany',
+              type: 'hasOne',
               target: 'dog',
-              as: 'dogIds',
-              foreignKey: 'masterId'
+              as: 'dogId',
+              foreignKey: 'masterId',
+              unique: true
             }],
             operations: {
               db: {
@@ -110,7 +115,8 @@ describe('hw-redis-ohm', function () {
               type: 'hasOne',
               target: 'contact',
               as: 'masterId',
-              foreignKey: 'dogIds'
+              foreignKey: 'dogIds',
+              unique: true
             }],
             operations: {
               db: {
@@ -127,9 +133,9 @@ describe('hw-redis-ohm', function () {
           return ohm.start({schemas: schemas});
         },
         function () {
-          Group = ohm.getModelClass('group');
-          Contact = ohm.getModelClass('contact');
-          Dog = ohm.getModelClass('dog');
+          Group = ohm.getEntityClass('group');
+          Contact = ohm.getEntityClass('contact');
+          Dog = ohm.getEntityClass('dog');
         },
         function () {
           return tUtil.cleanStore();
@@ -147,291 +153,192 @@ describe('hw-redis-ohm', function () {
       return tUtil.cleanStore();
     });
 
-    describe('', function () {
+    describe('entities', function () {
 
-      it('', function () {
-        var group = Group.create({name: 'vip'});
-        return group.save().then(function (result) {
-          expect(result).to.eql(group);
-        });
-      });
-
-    });
-
-    xdescribe('groups', function () {
-
-      it('should manage groups', function () {
-        var groups, contacts;
-        groups = [
-          {name: 'vip'},
-          {name: 'coders'}
-        ];
-        contacts = [
-          {firstname: 'john', lastname: 'doe', email: 'john@doe.com'},
-          {firstname: 'jane', lastname: 'doe', email: 'jane@doe.com'}
-        ];
+      it('should create, save, read and delete entities', function () {
+        var groups = [
+            {value: 'vip'},
+            {value: 'admin'}
+          ]
+          , contacts = [
+            {firstname: 'john', lastname: 'doe', email: 'john@doe.com'},
+            {firstname: 'jane', lastname: 'doe', email: 'jane@doe.com'}
+          ]
+          , dogs = [
+            {value: 'rex'}
+          ]
+          , groupEntities = []
+          , contactEntities = []
+          , dogEntities = [];
         return p.do(
-          function () {
-            return p.map(groups, function (group) {
-              var entity;
-              entity = ohm.create('group', group);
+          function saveGroups() {
+            return p.map(groups, function (value) {
+              var entity = Group.create(value);
+              groupEntities.push(entity);
               return entity.save().then(function (result) {
-                group.id = result.id;
+                expect(result).to.eql(entity);
+                expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
               });
             });
           },
-          function () {
-            return Group.list().then(function (result) {
-              expect(result).to.be.an('array').of.length(groups.length);
+          function updateGroup() {
+            var groupEntity = groupEntities[0];
+            groupEntity.value.value = 'VIP';
+            return Group.update(groupEntity.value).then(function (result) {
+              expect(result).to.eql(groupEntity);
             });
           },
-          function () {
-            var groupIds = _.pluck(groups, 'id');
-            contacts.map(function (contact) {
+          function associateContactsWithGroups() {
+            contacts.forEach(function (contact, index) {
+              var groupIds = [], i;
+              for (i = 0; i < index + 1; i++) {
+                groupIds.push(groupEntities[i].value.id);
+              }
               contact.groupIds = groupIds;
             });
           },
-          function () {
-            return p.map(contacts, function (contact) {
-              var entity;
-              entity = ohm.create('contact', contact);
+          function saveContacts() {
+            return p.map(contacts, function (value) {
+              var entity = Contact.create(value);
+              contactEntities.push(entity);
               return entity.save().then(function (result) {
-                contact.id = result.id;
+                expect(result).to.eql(entity);
+                expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
               });
             });
           },
-          function () {
-            return Contact.findByIndex('groupIds', '1').then(function (result) {
-              expect(result).to.be.an('array').of.length(contacts.length);
-            });
-          },
-          function () {
-            return p.map(groups, function (group) {
-              return Group.delete(group.id).then(function (result) {
-                expect(result).to.equal(1);
+          function saveSameContact() {
+            var entity = Contact.create(contacts[0]);
+            return new p(function (resolve) {
+              entity.save().nodeify(function (err) {
+                expect(err).to.have.property('name', 'CONFLICT');
+                resolve();
               });
             });
           },
-          function () {
-            return p.map(contacts, function (group) {
-              return Contact.delete(group.id).then(function (result) {
-                expect(result).to.equal(1);
+          function saveDogs() {
+            return p.map(dogs, function (value, index) {
+              var entity = Dog.create(value);
+              entity.value.masterId = contactEntities[index].getId();
+              dogEntities.push(entity);
+              return entity.save().then(function (result) {
+                expect(result).to.eql(entity);
+                expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
               });
             });
-          });
-      });
-
-    });
-
-    xdescribe('contacts', function () {
-
-      it('should save contacts', function () {
-        var contacts, entities;
-        contacts = [
-          {firstname: 'john', lastname: 'doe', email: 'john@doe.com'},
-          {firstname: 'jane', lastname: 'doe', email: 'jane@doe.com'}
-        ];
-        return p.do(
-          function () {
-            entities = contacts.map(function (contact) {
-              var entity;
-              entity = ohm.create('contact', contact);
-              expect(entity).to.be.ok;
-              expect(entity).to.have.property('value').that.eql(contact);
-              return entity;
-            });
-            return p.map(entities, function (entity) {
-              return entity.save();
-            });
           },
-          function (result) {
-            result.map(function (entity, index) {
-              entities[index].value.id = entity.id;
-              entities[index].value.friendIds = [result[(index + 1) % result.length].id];
-            });
-            return p.map(entities, function (entity) {
-              return entity.update();
-            });
-          },
-          function () {
-            return p.all([
-              Contact.findByIndex('email', 'john@doe.com').then(_.first),
-              Contact.findByIndex('email', 'jane@doe.com').then(_.first)
-            ])
-              .then(function (result) {
-                expect(result).to.be.an('array').of.length(2);
-                result.forEach(function (item, index) {
-                  expect(item).to.have.property('id');
-                  expect(item).to.have.property('firstname', contacts[index].firstname);
-                  expect(item).to.have.property('lastname', contacts[index].lastname);
-                  expect(item).to.have.property('email', contacts[index].email);
-                  expect(item).to.have.property('friendIds').that.eql([item.id === '1' ? '2' : '1']);
-                  expect(item).to.have.property('dogIds').that.eql([]);
-                  expect(item).to.have.property('groupIds').that.eql([]);
-                });
+          function saveSameDog() {
+            var entity = Dog.create({value: 'ted', masterId: contactEntities[0].getId()});
+            return new p(function (resolve) {
+              entity.save().nodeify(function (err) {
+                expect(err).to.have.property('name', 'CONFLICT');
+                resolve();
               });
+            });
           },
-          function () {
+          function loadGroupFromBadId() {
+            return new p(function (resolve) {
+              Group.load('badid').nodeify(function (err) {
+                expect(err).to.have.property('name', 'NOT_FOUND');
+                resolve();
+              });
+            });
+          },
+          function loadGroup() {
+            return p.map(groupEntities, function (groupEntity) {
+              return Group.load(groupEntity.getId()).then(function (result) {
+                groupEntity.value.contactIds = result.value.contactIds;
+                expect(result).to.eql(groupEntity);
+              });
+            });
+          },
+          function listGroups() {
+            return Group.list('id').then(function (result) {
+              expect(result).to.eql(groupEntities);
+            });
+          },
+          function loadContact() {
+            var entity = _.first(contactEntities);
+            return Contact.load(entity.getId()).then(function (result) {
+              expect(result).to.eql(entity);
+            });
+          },
+          function findContactOfDog() {
+            return Contact.findByIndex('dogIds', dogEntities[0].getId()).then(function (result) {
+              expect(result).to.be.an('array').of.length(0);
+            });
+          },
+          function findByContactUnknown() {
+            return Contact.findByIndex('unknown', 'hello').then(function (result) {
+              expect(result).to.be.an('array').of.length(0);
+            });
+          },
+          function findContactByBadEmail() {
             return Contact.findByIndex('email', 'unknown@doe.com').then(function (result) {
               expect(result).to.be.an('array').of.length(0);
             });
           },
-          function () {
-            return Contact.findByIndex('unknownProperty', 'hello').then(function (result) {
+          function findContactByEmail() {
+            return Contact.findByIndex('email', 'john@doe.com').then(function (result) {
+              expect(result).to.be.an('array').of.length(1);
+              expect(_.first(result)).to.eql(_.first(contactEntities));
+            });
+          },
+          function findContactByLastname() {
+            return Contact.findByIndex('lastname', 'doe').then(function (result) {
+              expect(result).to.be.an('array').of.length(2);
+            });
+          },
+          function findContactByGroup() {
+            return Contact.findByIndex('groupIds', groupEntities[0].getId()).then(function (result) {
+              expect(result).to.be.an('array').of.length(2);
+              expect(_.first(result)).to.eql(contactEntities[0]);
+              expect(_.rest(result)[0]).to.eql(contactEntities[1]);
+            });
+          },
+          function findContactByBadGroup() {
+            return Contact.findByIndex('groupIds', 'badid').then(function (result) {
               expect(result).to.be.an('array').of.length(0);
             });
           },
-          function () {
-            return Contact.findByIndex('friendIds', '99').then(function (result) {
-              expect(result).to.be.an('array').of.length(0);
+          function findContactByOtherGroup() {
+            return Contact.findByIndex('groupIds', groupEntities[1].getId()).then(function (result) {
+              expect(result).to.be.an('array').of.length(1);
+              expect(_.first(result)).to.eql(contactEntities[1]);
             });
           },
-          function () {
-            return p.map(entities, function (entity) {
-              return entity.delete();
-            });
-          });
-      });
-
-    });
-
-    xdescribe('dog', function () {
-
-      it('should create,read, update, delete a dog', function () {
-        var dogId, dog;
-        return p.do(
-          function save() {
-            var entity;
-            entity = ohm.create('dog', {value: 'rex'});
-            return entity.save().then(function (result) {
-              dogId = result.id;
-            });
-          },
-          function () {
-            return Dog.load(dogId).then(function (result) {
-              expect(result).to.be.ok;
-              expect(result).to.have.property('id');
-              expect(result).to.have.property('value', 'rex');
-              dog = result;
-            });
-          },
-          function () {
-            dog.value = 'ringo';
-            return Dog.update(dog).then(function (result) {
-              log.warn('result :', result);
-              expect(result).to.be.ok;
-              expect(result).to.have.property('id');
-              expect(result).to.have.property('value', 'ringo');
-              dog = result;
-            });
-          },
-          function () {
-            return Dog.load(dogId).then(function (result) {
-              expect(result).to.be.ok;
-              expect(result).to.have.property('id');
-              expect(result).to.have.property('value', 'ringo');
-              dog = result;
-            });
-          },
-          function () {
-            return Dog.delete(dogId).then(function (result) {
-              expect(result).to.equal(1);
-            });
-          },
-          function () {
-            return p.fromNode(function (cb) {
-              Dog.load(dogId).nodeify(function (err) {
-                expect(err).to.be.an.instanceof(Error);
+          function deleteGroupByBadId() {
+            return new p(function (resolve) {
+              Group.delete('badid').nodeify(function (err) {
                 expect(err).to.have.property('name', 'NOT_FOUND');
-                cb();
+                resolve();
               });
             });
-
-          });
-      });
-
-    });
-
-    xdescribe('contact with dogs', function () {
-
-      it('should add a contact with a dog', function () {
-        var contactId, dogId;
-        return p.do(
-          function saveContact() {
-            var entity;
-            entity = ohm.create('contact', {firstname: 'john', lastname: 'doe', email: 'john@doe.com'});
-            return entity.save()
-              .then(function (result) {
-                contactId = result.id;
-              });
           },
-          function saveDog() {
-            var entity;
-            entity = ohm.create('dog', {value: 'rex'});
-            return entity.save()
-              .then(function (result) {
-                dogId = result.id;
+          function deleteGroups() {
+            return p.map(groupEntities, function (entity) {
+              return Group.delete(entity.getId()).then(function (result) {
+                expect(result).to.equal(1);
               });
+            });
           },
-          function associate() {
-            return Dog.load(dogId)
-              .then(function (dog) {
-                dog.masterId = contactId;
-                return Dog.update(dog);
+          function deleteContacts() {
+            return p.map(contactEntities, function (entity) {
+              return Contact.delete(entity.getId()).then(function (result) {
+                expect(result).to.equal(1);
               });
+            });
           },
-          function checkContact() {
-            return Contact.load(contactId)
-              .then(function (contact) {
-                expect(contact).to.have.property('dogIds').that.eql([dogId]);
+          function deleteBadEntity() {
+            return new p(function (resolve) {
+              delete groupEntities[0].value.id;
+              groupEntities[0].delete().nodeify(function (err) {
+                expect(err).to.have.property('name', 'BAD_FORMAT');
+                resolve();
               });
-          },
-          function checkDog() {
-            return Dog.load(dogId)
-              .then(function (dog) {
-                expect(dog).to.have.property('masterId').that.eql(contactId);
-              });
-          });
-      });
-
-      it('should add a contact with a group', function () {
-        var contactId, groupId;
-        return p.do(
-          function saveContact() {
-            var entity;
-            entity = ohm.create('contact', {firstname: 'jane', lastname: 'doe', email: 'jane@doe.com'});
-            return entity.save()
-              .then(function (result) {
-                contactId = result.id;
-              });
-          },
-          function saveGroup() {
-            var entity;
-            entity = ohm.create('group', {name: 'VIP'});
-            return entity.save()
-              .then(function (result) {
-                groupId = result.id;
-              });
-          },
-          function associate() {
-            return Group.load(groupId)
-              .then(function (group) {
-                group.contactIds = [contactId];
-                return Group.update(group);
-              });
-          },
-          function checkContact() {
-            return Contact.load(contactId)
-              .then(function (contact) {
-                expect(contact).to.have.property('groupIds').that.eql([groupId]);
-              });
-          },
-          function checkGroup() {
-            return Group.load(groupId)
-              .then(function (group) {
-                expect(group).to.have.property('contactIds').that.eql([contactId]);
-              });
-          });
+            });
+          }
+        );
       });
 
     });
