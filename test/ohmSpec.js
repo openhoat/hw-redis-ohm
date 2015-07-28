@@ -5,14 +5,12 @@ var chai = require('chai')
   , _ = require('lodash')
   , p = require('hw-promise')
   , ohm = require('../lib/ohm')
-//, logger = require('hw-logger')
-//, log = logger.log
+  , logger = require('hw-logger')
+  , log = logger.log
   , tUtil = require('./test-util');
 
-/*
- logger.registerLevels({redis: 6});
- logger.setLevel('redis');
- */
+logger.registerLevels({redis: 6});
+logger.setLevel('redis');
 
 describe('hw-redis-ohm', function () {
 
@@ -21,10 +19,52 @@ describe('hw-redis-ohm', function () {
     it('should start and stop', function () {
       return p.do(
         function () {
-          return ohm.start();
+          return ohm.start().then(function (result) {
+            expect(result).to.be.true;
+          });
         },
         function () {
           return tUtil.cleanStore();
+        })
+        .finally(function () {
+          return ohm.stop();
+        });
+    });
+
+    it('should start with callback', function (done) {
+      ohm.start(function (err, result) {
+        expect(err).to.not.be.ok;
+        expect(result).to.be.true;
+        ohm.stop(function (err, result) {
+          expect(err).to.not.be.ok;
+          expect(result).to.be.true;
+          done();
+        });
+      });
+    });
+
+    it('should try to stop when not started', function (done) {
+      ohm.stop(function (err, result) {
+        expect(err).to.not.be.ok;
+        expect(result).to.be.false;
+        done();
+      });
+    });
+
+    it('should not start twice', function () {
+      return p.do(
+        function () {
+          return ohm.start().then(function (result) {
+            expect(result).to.be.true;
+          });
+        },
+        function () {
+          return tUtil.cleanStore();
+        },
+        function () {
+          return ohm.start().then(function (result) {
+            expect(result).to.be.false;
+          });
         })
         .finally(function () {
           return ohm.stop();
