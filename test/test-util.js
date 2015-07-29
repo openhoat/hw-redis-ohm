@@ -1,6 +1,6 @@
 'use strict';
 
-var Promise = require('bluebird')
+var p = require('hw-promise')
   , logger = require('hw-logger')
   , ohm = require('../lib/ohm')
   , log = logger.log
@@ -12,7 +12,7 @@ that = {
     return redisCli.keysAsync(ohm.toHash('*'))
       .then(function (keys) {
         logger.enabledLevels.trace && log.trace('purging keys :', keys);
-        return Promise.map(keys, redisCli.delAsync.bind(redisCli));
+        return p.map(keys, redisCli.delAsync.bind(redisCli));
       });
   }
 };
