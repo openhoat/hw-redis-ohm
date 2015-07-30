@@ -158,7 +158,7 @@ describe('hw-redis-ohm', function () {
               type: 'hasOne',
               target: 'contact',
               as: 'masterId',
-              foreignKey: 'dogIds',
+              foreignKey: 'dogId',
               unique: true
             }],
             operations: {
@@ -260,6 +260,7 @@ describe('hw-redis-ohm', function () {
               entity.value.masterId = contactEntities[index].getId();
               dogEntities.push(entity);
               return entity.save().then(function (result) {
+                contactEntities[index].value.dogId = result.getId();
                 expect(result).to.eql(entity);
                 expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
               });
@@ -302,8 +303,8 @@ describe('hw-redis-ohm', function () {
             });
           },
           function findContactOfDog() {
-            return ohm.Contact.findByIndex('dogIds', dogEntities[0].getId()).then(function (result) {
-              expect(result).to.be.an('array').of.length(0);
+            return ohm.Contact.findByIndex('dogId', dogEntities[0].getId()).then(function (result) {
+              expect(result).to.be.an('array').of.length(1);
             });
           },
           function findByContactUnknown() {
