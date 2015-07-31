@@ -109,8 +109,8 @@ describe('hw-redis-ohm', function () {
           title: 'Contact JSON schema',
           type: 'object',
           properties: {
-            firstname: {type: 'string'},
-            lastname: {type: 'string'},
+            username: {type: 'string'},
+            password: {type: 'string'},
             email: {type: 'string', format: 'email'}
           },
           meta: {
@@ -139,7 +139,10 @@ describe('hw-redis-ohm', function () {
             operations: {
               db: {
                 new: {
-                  required: ['email']
+                  required: ['username', 'password', 'email']
+                },
+                get: {
+                  excudeProperties: ['password']
                 }
               }
             }
@@ -191,6 +194,80 @@ describe('hw-redis-ohm', function () {
       return tUtil.cleanStore();
     });
 
+    it.only('should return schemas', function () {
+      expect(ohm.schemas).to.be.ok;
+      log.warn(JSON.stringify(ohm.schemas.group, null, 2));
+      expect(ohm.schemas).to.have.property('group').that.eql({
+        'title': 'Group JSON schema main default',
+        'type': 'object',
+        'properties': {
+          'id': {'type': 'string', 'pattern': '^[0-9]+$'},
+          'value': {'type': 'string'},
+          'contactIds': {
+            'type': 'array',
+            'items': {
+              'type': ['string', 'null'],
+              'pattern': '^[0-9]+$'
+            }
+          }
+        },
+        'meta': {
+          'idGenerator': 'increment',
+          'indexes': [
+            {'name': 'value', 'unique': true}
+          ],
+          'links': [
+            {'type': 'hasMany', 'target': 'contact', 'as': 'contactIds', 'foreignKey': 'groupIds'}
+          ],
+          'operations': {
+            'db': {
+              'new': {
+                'required': ['value'],
+                'title': 'Group JSON schema db new',
+                'type': 'object',
+                'properties': {
+                  'contactIds': {
+                    'type': 'array',
+                    'items': {
+                      'type': ['string', 'null'],
+                      'pattern': '^[0-9]+$'
+                    }
+                  },
+                  'value': {'type': 'string'}
+                }
+              },
+              'save': {
+                'required': ['id'],
+                'minProperties': 2,
+                'title': 'Group JSON schema db save',
+                'type': 'object',
+                'properties': {
+                  'value': {'type': 'string'},
+                  'id': {'type': 'string', 'pattern': '^[0-9]+$'}
+                }
+              },
+              'get': {
+                'title': 'Group JSON schema db get',
+                'type': 'object',
+                'properties': {
+                  'contactIds': {
+                    'type': 'array',
+                    'items': {
+                      'type': ['string', 'null'],
+                      'pattern': '^[0-9]+$'
+                    }
+                  },
+                  'value': {'type': 'string'},
+                  'id': {'type': 'string', 'pattern': '^[0-9]+$'}
+                }
+              }
+            }
+          }
+        }
+      });
+      log.warn(ohm.schemas);
+    });
+
     describe('entities', function () {
 
       it('should create, save, read and delete entities', function () {
@@ -211,7 +288,7 @@ describe('hw-redis-ohm', function () {
         return p.do(
           function saveGroups() {
             return p.map(groups, function (value) {
-              var entity = ohm.Group.create(value);
+              var entity = ohm.entityClasses.Group.create(value);
               groupEntities.push(entity);
               return entity.save().then(function (result) {
                 expect(result).to.eql(entity);
@@ -222,7 +299,7 @@ describe('hw-redis-ohm', function () {
           function updateGroup() {
             var groupEntity = groupEntities[0];
             groupEntity.value.value = 'VIP';
-            return ohm.Group.update(groupEntity.value).then(function (result) {
+            return ohm.entityClasses.Group.update(groupEntity.value).then(function (result) {
               expect(result).to.eql(groupEntity);
             });
           },
@@ -237,7 +314,7 @@ describe('hw-redis-ohm', function () {
           },
           function saveContacts() {
             return p.map(contacts, function (value) {
-              var entity = ohm.Contact.create(value);
+              var entity = ohm.entityClasses.Contact.create(value);
               contactEntities.push(entity);
               return entity.save().then(function (result) {
                 expect(result).to.eql(entity);
@@ -246,7 +323,7 @@ describe('hw-redis-ohm', function () {
             });
           },
           function saveSameContact() {
-            var entity = ohm.Contact.create(contacts[0]);
+            var entity = ohm.entityClasses.Contact.create(contacts[0]);
             return new p(function (resolve) {
               entity.save().nodeify(function (err) {
                 expect(err).to.have.property('name', 'CONFLICT');
@@ -256,7 +333,7 @@ describe('hw-redis-ohm', function () {
           },
           function saveDogs() {
             return p.map(dogs, function (value, index) {
-              var entity = ohm.Dog.create(value);
+              var entity = ohm.entityClasses.Dog.create(value);
               entity.value.masterId = contactEntities[index].getId();
               dogEntities.push(entity);
               return entity.save().then(function (result) {
@@ -267,7 +344,7 @@ describe('hw-redis-ohm', function () {
             });
           },
           function saveSameDog() {
-            var entity = ohm.Dog.create({value: 'ted', masterId: contactEntities[0].getId()});
+            var entity = ohm.entityClasses.Dog.create({value: 'ted', masterId: contactEntities[0].getId()});
             return new p(function (resolve) {
               entity.save().nodeify(function (err) {
                 expect(err).to.have.property('name', 'CONFLICT');
@@ -277,7 +354,7 @@ describe('hw-redis-ohm', function () {
           },
           function loadGroupFromBadId() {
             return new p(function (resolve) {
-              ohm.Group.load('badid').nodeify(function (err) {
+              ohm.entityClasses.Group.load('badid').nodeify(function (err) {
                 expect(err).to.have.property('name', 'NOT_FOUND');
                 resolve();
               });
@@ -285,70 +362,70 @@ describe('hw-redis-ohm', function () {
           },
           function loadGroup() {
             return p.map(groupEntities, function (groupEntity) {
-              return ohm.Group.load(groupEntity.getId()).then(function (result) {
+              return ohm.entityClasses.Group.load(groupEntity.getId()).then(function (result) {
                 groupEntity.value.contactIds = result.value.contactIds;
                 expect(result).to.eql(groupEntity);
               });
             });
           },
           function listGroups() {
-            return ohm.Group.list('id').then(function (result) {
+            return ohm.entityClasses.Group.list('id').then(function (result) {
               expect(result).to.eql(groupEntities);
             });
           },
           function loadContact() {
             var entity = _.first(contactEntities);
-            return ohm.Contact.load(entity.getId()).then(function (result) {
+            return ohm.entityClasses.Contact.load(entity.getId()).then(function (result) {
               expect(result).to.eql(entity);
             });
           },
           function findContactOfDog() {
-            return ohm.Contact.findByIndex('dogId', dogEntities[0].getId()).then(function (result) {
+            return ohm.entityClasses.Contact.findByIndex('dogId', dogEntities[0].getId()).then(function (result) {
               expect(result).to.be.an('array').of.length(1);
             });
           },
           function findByContactUnknown() {
-            return ohm.Contact.findByIndex('unknown', 'hello').then(function (result) {
+            return ohm.entityClasses.Contact.findByIndex('unknown', 'hello').then(function (result) {
               expect(result).to.be.an('array').of.length(0);
             });
           },
           function findContactByBadEmail() {
-            return ohm.Contact.findByIndex('email', 'unknown@doe.com').then(function (result) {
+            return ohm.entityClasses.Contact.findByIndex('email', 'unknown@doe.com').then(function (result) {
               expect(result).to.be.an('array').of.length(0);
             });
           },
           function findContactByEmail() {
-            return ohm.Contact.findByIndex('email', 'john@doe.com').then(function (result) {
+            return ohm.entityClasses.Contact.findByIndex('email', 'john@doe.com').then(function (result) {
               expect(result).to.be.an('array').of.length(1);
               expect(_.first(result)).to.eql(_.first(contactEntities));
             });
           },
           function findContactByLastname() {
-            return ohm.Contact.findByIndex('lastname', 'doe').then(function (result) {
+            return ohm.entityClasses.Contact.findByIndex('lastname', 'doe').then(function (result) {
               expect(result).to.be.an('array').of.length(2);
             });
           },
           function findContactByGroup() {
-            return ohm.Contact.findByIndex('groupIds', groupEntities[0].getId()).then(function (result) {
+            return ohm.entityClasses.Contact.findByIndex('groupIds', groupEntities[0].getId()).then(function (result) {
               expect(result).to.be.an('array').of.length(2);
               expect(_.first(result)).to.eql(contactEntities[0]);
               expect(_.rest(result)[0]).to.eql(contactEntities[1]);
             });
           },
           function findContactByBadGroup() {
-            return ohm.Contact.findByIndex('groupIds', 'badid').then(function (result) {
+            return ohm.entityClasses.Contact.findByIndex('groupIds', 'badid').then(function (result) {
               expect(result).to.be.an('array').of.length(0);
             });
           },
           function findContactByOtherGroup() {
-            return ohm.Contact.findByIndex('groupIds', groupEntities[1].getId()).then(function (result) {
+            return ohm.entityClasses.Contact.findByIndex('groupIds', groupEntities[1].getId()).then(function (result) {
               expect(result).to.be.an('array').of.length(1);
               expect(_.first(result)).to.eql(contactEntities[1]);
             });
           },
           function deleteGroupByBadId() {
             return new p(function (resolve) {
-              ohm.Group.delete('badid').nodeify(function (err) {
+              ohm.entityClasses.Group.delete('badid').nodeify(function (err) {
                 expect(err).to.have.property('name', 'NOT_FOUND');
                 resolve();
               });
@@ -356,14 +433,14 @@ describe('hw-redis-ohm', function () {
           },
           function deleteGroups() {
             return p.map(groupEntities, function (entity) {
-              return ohm.Group.delete(entity.getId()).then(function (result) {
+              return ohm.entityClasses.Group.delete(entity.getId()).then(function (result) {
                 expect(result).to.equal(1);
               });
             });
           },
           function deleteContacts() {
             return p.map(contactEntities, function (entity) {
-              return ohm.Contact.delete(entity.getId()).then(function (result) {
+              return ohm.entityClasses.Contact.delete(entity.getId()).then(function (result) {
                 expect(result).to.equal(1);
               });
             });
