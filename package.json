@@ -32,7 +32,7 @@
     "hat": "0.0.3",
     "hiredis": "^0.3.0",
     "hw-logger": "^1.1.9",
-    "hw-error": "^0.0.1",
+    "hw-error": "^0.0.2",
     "hw-promise": "^0.0.1",
     "jayschema": "^0.3.1",
     "lodash": "^3.8.0",
