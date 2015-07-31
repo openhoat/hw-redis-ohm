@@ -109,6 +109,8 @@ describe('hw-redis-ohm', function () {
           title: 'Contact JSON schema',
           type: 'object',
           properties: {
+            firstname: {type: 'string'},
+            lastname: {type: 'string'},
             username: {type: 'string'},
             password: {type: 'string'},
             email: {type: 'string', format: 'email'}
@@ -194,7 +196,7 @@ describe('hw-redis-ohm', function () {
       return tUtil.cleanStore();
     });
 
-    it.only('should return schemas', function () {
+    it('should return schemas', function () {
       expect(ohm.schemas).to.be.ok;
       log.warn(JSON.stringify(ohm.schemas.group, null, 2));
       expect(ohm.schemas).to.have.property('group').that.eql({
@@ -276,8 +278,8 @@ describe('hw-redis-ohm', function () {
             {value: 'admin'}
           ]
           , contacts = [
-            {firstname: 'john', lastname: 'doe', email: 'john@doe.com'},
-            {firstname: 'jane', lastname: 'doe', email: 'jane@doe.com'}
+            {username: 'johndoe', password: 'secret', firstname: 'john', lastname: 'doe', email: 'john@doe.com'},
+            {username: 'janedoe', password: 'secret', firstname: 'jane', lastname: 'doe', email: 'jane@doe.com'}
           ]
           , dogs = [
             {value: 'rex'}
