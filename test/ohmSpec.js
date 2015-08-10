@@ -144,7 +144,7 @@ describe('hw-redis-ohm', function () {
                   required: ['username', 'password', 'email']
                 },
                 get: {
-                  excudeProperties: ['password']
+                  excludeProperties: ['password']
                 }
               }
             }
@@ -169,11 +169,18 @@ describe('hw-redis-ohm', function () {
             operations: {
               db: {
                 new: {
+                  includeProperties: ['value'],
+                  extraProperties: {
+                    description: {type: 'string'}
+                  },
                   required: ['value']
                 }
               }
             }
           }
+        },
+        version: {
+          type: 'string'
         }
       };
       return p.do(
@@ -199,73 +206,229 @@ describe('hw-redis-ohm', function () {
     it('should return schemas', function () {
       expect(ohm.schemas).to.be.ok
       expect(ohm.schemas).to.have.property('group').that.eql({
-        'title': 'Group JSON schema main default',
-        'type': 'object',
-        'properties': {
-          'id': {'type': 'string', 'pattern': '^[0-9]+$'},
-          'value': {'type': 'string'},
-          'contactIds': {
-            'type': 'array',
-            'items': {
-              'type': ['string', 'null'],
-              'pattern': '^[0-9]+$'
-            }
+        title: 'Group JSON schema main default',
+        type: 'object',
+        properties: {
+          id: {type: 'string', pattern: '^[0-9]+$'},
+          value: {type: 'string'},
+          contactIds: {
+            type: 'array',
+            items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
           }
         },
-        'meta': {
-          'idGenerator': 'increment',
-          'indexes': [
-            {'name': 'value', 'unique': true}
-          ],
-          'links': [
-            {'type': 'hasMany', 'target': 'contact', 'as': 'contactIds', 'foreignKey': 'groupIds'}
-          ],
-          'operations': {
-            'db': {
-              'new': {
-                'required': ['value'],
-                'title': 'Group JSON schema db new',
-                'type': 'object',
-                'properties': {
-                  'contactIds': {
-                    'type': 'array',
-                    'items': {
-                      'type': ['string', 'null'],
-                      'pattern': '^[0-9]+$'
-                    }
+        meta: {
+          idGenerator: 'increment',
+          indexes: [{name: 'value', unique: true}],
+          links: [{type: 'hasMany', target: 'contact', as: 'contactIds', foreignKey: 'groupIds'}],
+          operations: {
+            db: {
+              new: {
+                required: ['value'],
+                title: 'Group JSON schema db new',
+                type: 'object',
+                properties: {
+                  contactIds: {
+                    type: 'array',
+                    items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
                   },
-                  'value': {'type': 'string'}
+                  value: {type: 'string'}
                 }
               },
-              'save': {
-                'required': ['id'],
-                'minProperties': 2,
-                'title': 'Group JSON schema db save',
-                'type': 'object',
-                'properties': {
-                  'value': {'type': 'string'},
-                  'id': {'type': 'string', 'pattern': '^[0-9]+$'}
+              save: {
+                required: ['id'],
+                minProperties: 2,
+                title: 'Group JSON schema db save',
+                type: 'object',
+                properties: {
+                  value: {type: 'string'},
+                  id: {type: 'string', pattern: '^[0-9]+$'}
                 }
               },
-              'get': {
-                'title': 'Group JSON schema db get',
-                'type': 'object',
-                'properties': {
-                  'contactIds': {
-                    'type': 'array',
-                    'items': {
-                      'type': ['string', 'null'],
-                      'pattern': '^[0-9]+$'
-                    }
+              get: {
+                title: 'Group JSON schema db get',
+                type: 'object',
+                properties: {
+                  contactIds: {
+                    type: 'array',
+                    items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
                   },
-                  'value': {'type': 'string'},
-                  'id': {'type': 'string', 'pattern': '^[0-9]+$'}
+                  value: {type: 'string'},
+                  id: {type: 'string', pattern: '^[0-9]+$'}
                 }
               }
             }
           }
         }
       });
+      expect(ohm.schemas).to.have.property('contact').that.eql({
+        title: 'Contact JSON schema main default',
+        type: 'object',
+        properties: {
+          firstname: {type: 'string'},
+          lastname: {type: 'string'},
+          username: {type: 'string'},
+          password: {type: 'string'},
+          email: {type: 'string', format: 'email'},
+          id: {type: 'string', pattern: '^[0-9]+$'},
+          groupIds: {
+            type: 'array',
+            items: {
+              type: ['string', 'null'],
+              pattern: '^[0-9]+$'
+            }
+          },
+          friendIds: {
+            type: 'array',
+            items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
+          },
+          dogId: {
+            type: ['string', 'null'],
+            pattern: '^[0-9]+$'
+          }
+        },
+        meta: {
+          idGenerator: 'increment',
+          indexes: [{name: 'email', unique: true}, {name: 'lastname'}],
+          links: [{
+            type: 'hasMany',
+            target: 'group',
+            as: 'groupIds',
+            foreignKey: 'contactIds'
+          }, {
+            type: 'hasMany',
+            target: 'contact',
+            as: 'friendIds',
+            foreignKey: 'friendIds'
+          }, {
+            type: 'hasOne',
+            target: 'dog',
+            as: 'dogId',
+            foreignKey: 'masterId',
+            unique: true
+          }],
+          operations: {
+            db: {
+              new: {
+                required: ['username', 'password', 'email'],
+                title: 'Contact JSON schema db new',
+                type: 'object',
+                properties: {
+                  firstname: {type: 'string'},
+                  lastname: {type: 'string'},
+                  username: {type: 'string'},
+                  password: {type: 'string'},
+                  email: {type: 'string', format: 'email'},
+                  groupIds: {
+                    type: 'array',
+                    items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
+                  },
+                  friendIds: {
+                    type: 'array',
+                    items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
+                  },
+                  dogId: {
+                    type: ['string', 'null'],
+                    pattern: '^[0-9]+$'
+                  }
+                }
+              },
+              get: {
+                title: 'Contact JSON schema db get',
+                type: 'object',
+                properties: {
+                  firstname: {type: 'string'},
+                  lastname: {type: 'string'},
+                  username: {type: 'string'},
+                  email: {type: 'string', format: 'email'},
+                  id: {type: 'string', pattern: '^[0-9]+$'},
+                  groupIds: {
+                    type: 'array',
+                    items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
+                  },
+                  friendIds: {
+                    type: 'array',
+                    items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
+                  },
+                  dogId: {type: ['string', 'null'], pattern: '^[0-9]+$'}
+                }
+              },
+              save: {
+                title: 'Contact JSON schema db save',
+                type: 'object',
+                required: ['id'],
+                minProperties: 2,
+                properties: {
+                  firstname: {type: 'string'},
+                  lastname: {type: 'string'},
+                  username: {type: 'string'},
+                  password: {type: 'string'},
+                  email: {type: 'string', format: 'email'},
+                  id: {type: 'string', pattern: '^[0-9]+$'}
+                }
+              }
+            }
+          }
+        }
+      });
+      expect(ohm.schemas).to.have.property('dog').that.eql({
+        title: 'Dog JSON schema main default',
+        type: 'object',
+        properties: {
+          value: {type: 'string'},
+          id: {type: 'string', pattern: '^[0-9]+$'},
+          masterId: {
+            type: ['string', 'null'],
+            pattern: '^[0-9]+$'
+          }
+        },
+        meta: {
+          idGenerator: 'increment',
+          indexes: [{name: 'value', unique: true}],
+          links: [{
+            type: 'hasOne',
+            target: 'contact',
+            as: 'masterId',
+            foreignKey: 'dogId',
+            unique: true
+          }],
+          operations: {
+            db: {
+              new: {
+                required: ['value'],
+                title: 'Dog JSON schema db new',
+                type: 'object',
+                properties: {
+                  value: {type: 'string'},
+                  description: {type: 'string'}
+                }
+              },
+              save: {
+                title: 'Dog JSON schema db save',
+                type: 'object',
+                required: ['id'],
+                minProperties: 2,
+                properties: {
+                  value: {type: 'string'},
+                  id: {type: 'string', pattern: '^[0-9]+$'}
+                }
+              },
+              get: {
+                title: 'Dog JSON schema db get',
+                type: 'object',
+                properties: {
+                  value: {type: 'string'},
+                  id: {type: 'string', pattern: '^[0-9]+$'},
+                  masterId: {
+                    type: ['string', 'null'],
+                    pattern: '^[0-9]+$'
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+      expect(ohm.schemas).to.not.have.property('version');
     });
 
     describe('entities', function () {
