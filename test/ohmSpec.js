@@ -199,9 +199,9 @@ describe('hw-redis-ohm', function () {
         });
     });
 
-    afterEach(function () {
-      return tUtil.cleanStore();
-    });
+    /*afterEach(function () {
+     return tUtil.cleanStore();
+     });*/
 
     it('should return schemas', function () {
       expect(ohm.schemas).to.be.ok
@@ -618,6 +618,21 @@ describe('hw-redis-ohm', function () {
             });
           }
         );
+      });
+
+      it('should save contact with optional attrs', function () {
+        var entity = ohm.entityClasses.Contact.create({
+          username: 'undoe',
+          password: 'secret',
+          email: 'un@doe.com',
+          firstname: ''
+        });
+        return entity.save().then(function (result) {
+          return ohm.entityClasses.Contact.load(result.getId()).then(function (result) {
+            expect(result).to.have.property('value');
+            expect(result.value).to.not.have.property('firstname');
+          });
+        });
       });
 
     });
