@@ -510,6 +510,7 @@ describe('hw-redis-ohm', function () {
             var entity = ohm.entityClasses.Dog.create({value: 'ted', masterId: contactEntities[0].getId()});
             return new p(function (resolve) {
               entity.save().nodeify(function (err) {
+                console.log('err :', err);
                 expect(err).to.have.property('name', 'CONFLICT');
                 resolve();
               });
