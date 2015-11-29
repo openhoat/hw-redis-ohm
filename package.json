@@ -1,6 +1,6 @@
 {
   "name": "hw-redis-ohm",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "Redis Object Hash Mapping",
   "main": "lib/ohm.js",
   "author": "Olivier Penhoat <openhoat@gmail.com> (http://headwood.net/)",
@@ -12,8 +12,9 @@
     "url": "https://github.com/openhoat/hw-redis-ohm/issues"
   },
   "engines": {
-    "node": "node >= 0.12.x"
+    "node": ">=0.12.0"
   },
+  "license": "MIT",
   "config": {
     "blanket": {
       "pattern": [
@@ -27,33 +28,33 @@
     }
   },
   "dependencies": {
-    "bcrypt": "^0.8.3",
+    "bcrypt": "^0.8.5",
     "hashcode": "^1.0.3",
     "hat": "0.0.3",
-    "hiredis": "^0.3.0",
-    "hw-logger": "^1.1.9",
-    "hw-error": "^0.0.8",
-    "hw-promise": "^0.0.1",
+    "hiredis": "^0.4.1",
+    "hw-logger": "^1.1.12",
+    "hw-error": "^0.0.10",
+    "hw-promise": "^0.0.2",
     "jayschema": "^0.3.1",
-    "lodash": "^3.8.0",
-    "node-uuid": "^1.4.3",
-    "redis": "^0.12.1",
-    "require-directory": "^2.1.0",
-    "shortid": "^2.2.2"
+    "lodash": "^3.10.1",
+    "node-uuid": "^1.4.7",
+    "redis": "^2.4.2",
+    "require-directory": "^2.1.1",
+    "shortid": "^2.2.4"
   },
   "devDependencies": {
-    "chai": "^2.3.0",
+    "chai": "^3.4.1",
     "grunt": "^0.4.5",
-    "grunt-contrib-clean": "^0.6.0",
-    "grunt-contrib-copy": "^0.8.0",
-    "grunt-contrib-jshint": "^0.11.2",
+    "grunt-contrib-clean": "^0.7.0",
+    "grunt-contrib-copy": "^0.8.2",
+    "grunt-contrib-jshint": "^0.11.3",
     "grunt-mkdir": "^0.1.2",
     "grunt-mocha-cov": "^0.4.0",
-    "jshint-stylish": "^1.0.2",
-    "load-grunt-tasks": "^3.1.0",
-    "mocha": "^2.2.4",
+    "jshint-stylish": "^2.1.0",
+    "load-grunt-tasks": "^3.3.0",
+    "mocha": "^2.3.4",
     "mocha-cobertura-reporter": "^1.0.4",
-    "time-grunt": "^1.1.1",
-    "xunit-file": "0.0.6"
+    "time-grunt": "^1.2.2",
+    "xunit-file": "0.0.9"
   }
 }

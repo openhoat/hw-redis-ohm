@@ -204,7 +204,7 @@ describe('hw-redis-ohm', function () {
      });*/
 
     it('should return schemas', function () {
-      expect(ohm.schemas).to.be.ok
+      expect(ohm.schemas).to.be.ok;
       expect(ohm.schemas).to.have.property('group').that.eql({
         title: 'Group JSON schema main default',
         type: 'object',
