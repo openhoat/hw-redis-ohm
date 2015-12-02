@@ -489,7 +489,7 @@ describe('hw-redis-ohm', function () {
             var entity = ohm.entityClasses.Contact.create(contacts[0]);
             return new p(function (resolve) {
               entity.save().nodeify(function (err) {
-                expect(err).to.have.property('name', 'CONFLICT');
+                expect(err).to.have.property('name', 'ConflictError');
                 resolve();
               });
             });
@@ -511,7 +511,7 @@ describe('hw-redis-ohm', function () {
             return new p(function (resolve) {
               entity.save().nodeify(function (err) {
                 console.log('err :', err);
-                expect(err).to.have.property('name', 'CONFLICT');
+                expect(err).to.have.property('name', 'ConflictError');
                 resolve();
               });
             });
@@ -519,7 +519,7 @@ describe('hw-redis-ohm', function () {
           function loadGroupFromBadId() {
             return new p(function (resolve) {
               ohm.entityClasses.Group.load('badid').nodeify(function (err) {
-                expect(err).to.have.property('name', 'NOT_FOUND');
+                expect(err).to.have.property('name', 'NotFoundError');
                 resolve();
               });
             });
@@ -590,7 +590,7 @@ describe('hw-redis-ohm', function () {
           function deleteGroupByBadId() {
             return new p(function (resolve) {
               ohm.entityClasses.Group.delete('badid').nodeify(function (err) {
-                expect(err).to.have.property('name', 'NOT_FOUND');
+                expect(err).to.have.property('name', 'NotFoundError');
                 resolve();
               });
             });
@@ -613,7 +613,7 @@ describe('hw-redis-ohm', function () {
             return new p(function (resolve) {
               delete groupEntities[0].value.id;
               groupEntities[0].delete().nodeify(function (err) {
-                expect(err).to.have.property('name', 'BAD_FORMAT');
+                expect(err).to.have.property('name', 'BadFormatError');
                 resolve();
               });
             });
