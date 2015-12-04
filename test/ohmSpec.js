@@ -4,10 +4,10 @@ var chai = require('chai')
   , expect = chai.expect
   , _ = require('lodash')
   , p = require('hw-promise')
-  , ohm = require('../lib/ohm')
   , logger = require('hw-logger')
-  , log = logger.log
-  , tUtil = require('./test-util');
+  , ohm = require('../lib/ohm')
+  , tUtil = require('./test-util')
+  , log = logger.log;
 
 describe('hw-redis-ohm', function () {
 
@@ -76,6 +76,125 @@ describe('hw-redis-ohm', function () {
 
   });
 
+  describe('ohm features', function () {
+
+    before(function () {
+      return p.do(
+        function () {
+          return ohm.start();
+        },
+        function () {
+          return tUtil.cleanStore();
+        });
+    });
+
+    after(function () {
+      return p.do(
+        function () {
+          return ohm.stop();
+        });
+    });
+
+    afterEach(function () {
+      return tUtil.cleanStore();
+    });
+
+    describe('exec', function () {
+
+      it('should execute redis command', function () {
+        var key = ohm.toHash('hello')
+          , value = 'world';
+        return p.do(
+          ohm.exec.bind(null, 'set', key, value),
+          function (result) {
+            expect(result).to.equal('OK');
+          },
+          ohm.exec.bind(null, 'get', key),
+          function (result) {
+            expect(result).to.equal(value);
+          });
+      });
+
+    });
+
+    describe('transaction', function () {
+      var keys = [ohm.toHash('hello'), ohm.toHash('foo')]
+        , values = ['world', 'bar'];
+
+      it('should execute multi', function () {
+        var multi = ohm.multi();
+        return p.do(
+          function () {
+            return p.map(keys, function (key, index) {
+              return ohm.execMulti(multi, 'set', key, values[index]);
+            });
+          },
+          function (results) {
+            expect(results).to.be.an('array').of.length(values.length);
+            return ohm.processMulti(multi);
+          },
+          function (results) {
+            expect(results).to.be.an('array').of.length(values.length);
+            results.forEach(function (result) {
+              expect(result).to.equal('OK');
+            });
+          },
+          function () {
+            return p.map(keys, function (key) {
+              return ohm.execMulti(multi, 'get', key);
+            });
+          },
+          function (results) {
+            expect(results).to.be.an('array').of.length(values.length);
+            return ohm.processMulti(multi);
+          },
+          function (results) {
+            expect(results).to.be.an('array').of.length(values.length);
+            results.forEach(function (result, index) {
+              expect(result).to.equal(values[index]);
+            });
+          });
+      });
+
+    });
+
+    describe('pub sub', function () {
+      var subChannel = ['sub1', 'sub2']
+        , messages = [['hello', 'world'], ['foo', 'bar']];
+
+      it('should subscribe and publish', function () {
+        return new p(function (resolve) {
+          var consumed = [0, 0];
+          ohm
+            .subscribe(subChannel[0], function (channel, message) {
+              expect(message).to.equal(messages[0][consumed[0]++]);
+              resolve();
+            })
+            .spread(function (channel, count) {
+              expect(channel).to.equal(subChannel[0]);
+              expect(count).to.equal(1);
+            })
+            .then(function () {
+              return ohm
+                .subscribe(subChannel[1], function (channel, message) {
+                  expect(message).to.equal(messages[1][consumed[1]++]);
+                  resolve();
+                })
+                .spread(function (channel, count) {
+                  expect(channel).to.equal(subChannel[1]);
+                  expect(count).to.equal(1);
+                });
+            })
+            .then(function () {
+              return p.each(messages, function (items, index) {
+                return p.each(items, ohm.publish.bind(null, subChannel[index]));
+              });
+            });
+        });
+      });
+    });
+
+  });
   describe('schemas', function () {
     var schemas;
 
@@ -199,9 +318,9 @@ describe('hw-redis-ohm', function () {
         });
     });
 
-    /*afterEach(function () {
-     return tUtil.cleanStore();
-     });*/
+    afterEach(function () {
+      return tUtil.cleanStore();
+    });
 
     it('should return schemas', function () {
       expect(ohm.schemas).to.be.ok;
@@ -435,16 +554,16 @@ describe('hw-redis-ohm', function () {
 
       it('should create, save, read and delete entities', function () {
         var groups = [
-            {value: 'vip'},
-            {value: 'admin'}
-          ]
+          {value: 'vip'},
+          {value: 'admin'}
+        ]
           , contacts = [
-            {username: 'johndoe', password: 'secret', firstname: 'john', lastname: 'doe', email: 'john@doe.com'},
-            {username: 'janedoe', password: 'secret', firstname: 'jane', lastname: 'doe', email: 'jane@doe.com'}
-          ]
+          {username: 'johndoe', password: 'secret', firstname: 'john', lastname: 'doe', email: 'john@doe.com'},
+          {username: 'janedoe', password: 'secret', firstname: 'jane', lastname: 'doe', email: 'jane@doe.com'}
+        ]
           , dogs = [
-            {value: 'rex'}
-          ]
+          {value: 'rex'}
+        ]
           , groupEntities = []
           , contactEntities = []
           , dogEntities = [];
@@ -456,6 +575,14 @@ describe('hw-redis-ohm', function () {
               return entity.save().then(function (result) {
                 expect(result).to.eql(entity);
                 expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
+              });
+            });
+          },
+          function loadGroup() {
+            return p.map(groupEntities, function (groupEntity) {
+              return ohm.entityClasses.Group.load(groupEntity.getId()).then(function (result) {
+                groupEntity.value.contactIds = result.value.contactIds;
+                expect(result).to.eql(groupEntity);
               });
             });
           },
@@ -598,14 +725,18 @@ describe('hw-redis-ohm', function () {
           function deleteGroups() {
             return p.map(groupEntities, function (entity) {
               return ohm.entityClasses.Group.delete(entity.getId()).then(function (result) {
-                expect(result).to.equal(1);
+                result.forEach(function (item) {
+                  expect(item).to.equal(1);
+                });
               });
             });
           },
           function deleteContacts() {
             return p.map(contactEntities, function (entity) {
               return ohm.entityClasses.Contact.delete(entity.getId()).then(function (result) {
-                expect(result).to.equal(1);
+                result.forEach(function (item) {
+                  expect(item).to.equal(1);
+                });
               });
             });
           },
@@ -615,6 +746,15 @@ describe('hw-redis-ohm', function () {
               groupEntities[0].delete().nodeify(function (err) {
                 expect(err).to.have.property('name', 'BadFormatError');
                 resolve();
+              });
+            });
+          },
+          function deleteDogs() {
+            return p.map(dogEntities, function (entity) {
+              return ohm.entityClasses.Dog.delete(entity.getId()).then(function (result) {
+                result.forEach(function (item) {
+                  expect(item).to.equal(1);
+                });
               });
             });
           }
