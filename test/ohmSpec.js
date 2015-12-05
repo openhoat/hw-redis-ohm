@@ -724,20 +724,12 @@ describe('hw-redis-ohm', function () {
           },
           function deleteGroups() {
             return p.map(groupEntities, function (entity) {
-              return ohm.entityClasses.Group.delete(entity.getId()).then(function (result) {
-                result.forEach(function (item) {
-                  expect(item).to.equal(1);
-                });
-              });
+              return ohm.entityClasses.Group.delete(entity.getId());
             });
           },
           function deleteContacts() {
             return p.map(contactEntities, function (entity) {
-              return ohm.entityClasses.Contact.delete(entity.getId()).then(function (result) {
-                result.forEach(function (item) {
-                  expect(item).to.equal(1);
-                });
-              });
+              return ohm.entityClasses.Contact.delete(entity.getId());
             });
           },
           function deleteBadEntity() {
@@ -751,11 +743,7 @@ describe('hw-redis-ohm', function () {
           },
           function deleteDogs() {
             return p.map(dogEntities, function (entity) {
-              return ohm.entityClasses.Dog.delete(entity.getId()).then(function (result) {
-                result.forEach(function (item) {
-                  expect(item).to.equal(1);
-                });
-              });
+              return ohm.entityClasses.Dog.delete(entity.getId());
             });
           }
         );
