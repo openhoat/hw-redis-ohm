@@ -3,6 +3,7 @@
 var chai = require('chai')
   , expect = chai.expect
   , _ = require('lodash')
+  , util = require('util')
   , p = require('hw-promise')
   , logger = require('hw-logger')
   , ohm = require('../lib/ohm')
@@ -115,6 +116,59 @@ describe('hw-redis-ohm', function () {
           });
       });
 
+      it('should fail to execute unsupported redis command', function () {
+        var key = ohm.toHash('hello')
+          , value = 'world';
+        return ohm.exec('unknowncommand', key, value)
+          .catch(function (err) {
+            expect(err).to.be.an.instanceof(ohm.errors.UnsupportedOhmError);
+            expect(err).to.have.property('name', 'UnsupportedOhmError');
+            expect(err).to.have.property('message', 'unsupported operation "unknowncommand" error');
+            expect(err.toString()).to.equal('UnsupportedOhmError: unsupported operation "unknowncommand" error');
+          });
+      });
+
+      it('should fail to execute hmset with a boolean', function () {
+        var key = ohm.toHash('hello');
+        return ohm.exec('hmset', key, true)
+          .catch(function (err) {
+            expect(err).to.be.an.instanceof(ohm.errors.RedisOhmError);
+            expect(err).to.have.property('name', 'RedisOhmError');
+            expect(err).to.have.property('message', 'redis error "Error: ERR wrong number of arguments for \'hmset\' command"');
+            expect(err.toString()).to.equal('RedisOhmError: redis error "Error: ERR wrong number of arguments for \'hmset\' command"');
+          });
+      });
+
+      it('should fail to execute unsupported redis multi command', function () {
+        var multi = ohm.multi()
+          , key = ohm.toHash('hello')
+          , value = 'world';
+        return ohm.execMulti(multi, 'unknowncommand', key, value)
+          .catch(function (err) {
+            expect(err).to.be.an.instanceof(ohm.errors.UnsupportedOhmError);
+            expect(err).to.have.property('name', 'UnsupportedOhmError');
+            expect(err).to.have.property('message', 'unsupported operation "unknowncommand" error');
+            expect(err.toString()).to.equal('UnsupportedOhmError: unsupported operation "unknowncommand" error');
+          });
+      });
+
+      it('should fail to execute multi hmset with a boolean', function () {
+        var multi = ohm.multi()
+          , key = ohm.toHash('hello');
+        return ohm.execMulti(multi, 'hmset', key, true)
+          .then(function () {
+            return ohm.processMulti(multi);
+          })
+          .catch(function (err) {
+            expect(err).to.be.an.instanceof(ohm.errors.RedisOhmError);
+            expect(err).to.have.property('name', 'RedisOhmError');
+            expect(err).to.have.property('message', 'redis error "Error: EXECABORT Transaction discarded because of previous errors."');
+            expect(err).to.have.property('redisError').that.have.property('errors').that.is.an('array').of.length(1);
+            expect(err.redisError.errors[0]).to.have.property('message', 'ERR wrong number of arguments for \'hmset\' command');
+            expect(err.toString()).to.equal('RedisOhmError: redis error "Error: EXECABORT Transaction discarded because of previous errors."');
+          });
+      });
+
     });
 
     describe('transaction', function () {
@@ -159,42 +213,48 @@ describe('hw-redis-ohm', function () {
     });
 
     describe('pub sub', function () {
-      var subChannel = ['sub1', 'sub2']
+      var subChannels = ['sub1', 'sub2']
         , messages = [['hello', 'world'], ['foo', 'bar']];
-
       it('should subscribe and publish', function () {
-        return new p(function (resolve) {
-          var consumed = [0, 0];
-          ohm
-            .subscribe(subChannel[0], function (channel, message) {
-              expect(message).to.equal(messages[0][consumed[0]++]);
-              resolve();
-            })
-            .spread(function (channel, count) {
-              expect(channel).to.equal(subChannel[0]);
-              expect(count).to.equal(1);
-            })
-            .then(function () {
-              return ohm
-                .subscribe(subChannel[1], function (channel, message) {
-                  expect(message).to.equal(messages[1][consumed[1]++]);
-                  resolve();
-                })
-                .spread(function (channel, count) {
-                  expect(channel).to.equal(subChannel[1]);
-                  expect(count).to.equal(1);
-                });
-            })
-            .then(function () {
-              return p.each(messages, function (items, index) {
-                return p.each(items, ohm.publish.bind(null, subChannel[index]));
+        var counters = _.fill(Array(subChannels.length), 0);
+        return p.do(
+          function () {
+            return p.map(counters, function (counter, index) {
+              return new p(function (resolve) {
+                ohm.subscribe(subChannels[index], function (channel, message) {
+                    expect(message).to.equal(messages[index][counters[index]++]);
+                    resolve();
+                  })
+                  .spread(function (channel, count) {
+                    expect(channel).to.equal(subChannels[index]);
+                    expect(count).to.equal(1);
+                  })
+                  .then(function () {
+                    return p.map(messages[index], function (message) {
+                      return ohm.publish(subChannels[index], message);
+                    });
+                  });
               });
             });
-        });
+          },
+          function () {
+            return p.each(subChannels, function (subChannel) {
+              return ohm.unsubscribe(subChannel)
+                .then(function () {
+                  return ohm.unsubscribe(subChannel);
+                });
+            });
+          },
+          function () {
+            return ohm.unpublish();
+          },
+          function () {
+            return ohm.unpublish();
+          });
       });
     });
-
   });
+
   describe('schemas', function () {
     var schemas;
 
@@ -322,7 +382,7 @@ describe('hw-redis-ohm', function () {
       return tUtil.cleanStore();
     });
 
-    it('should return schemas', function () {
+    it('should have schemas', function () {
       expect(ohm.schemas).to.be.ok;
       expect(ohm.schemas).to.have.property('group').that.eql({
         title: 'Group JSON schema main default',
@@ -550,6 +610,19 @@ describe('hw-redis-ohm', function () {
       expect(ohm.schemas).to.not.have.property('version');
     });
 
+    it('should get dog schema', function () {
+      var schema = ohm.getSchema('dog');
+      expect(schema).to.be.ok;
+      expect(schema).to.have.property('idGenerator');
+      expect(schema).to.have.property('indexes').that.is.an('array');
+      expect(schema).to.have.property('links').that.is.an('array');
+      expect(schema).to.have.property('operations');
+    });
+
+    it('should fail to get unknown schema', function () {
+      expect(ohm.getSchema.bind(ohm, 'unknown')).to.throw(ohm.errors.EntitySchemaNotFoundError);
+    });
+
     describe('entities', function () {
 
       it('should create, save, read and delete entities', function () {
@@ -616,7 +689,11 @@ describe('hw-redis-ohm', function () {
             var entity = ohm.entityClasses.Contact.create(contacts[0]);
             return new p(function (resolve) {
               entity.save().nodeify(function (err) {
-                expect(err).to.have.property('name', 'ConflictError');
+                expect(err).to.have.property('name', 'EntityConflictError');
+                expect(err).to.have.property('type', 'contact');
+                expect(err).to.have.property('attrName', 'email');
+                expect(err).to.have.property('attrValue', contacts[0].email);
+                expect(err.toString()).to.equal(util.format('EntityConflictError: entity "contact" conflict for "email" with value "%s"', contacts[0].email));
                 resolve();
               });
             });
@@ -637,8 +714,11 @@ describe('hw-redis-ohm', function () {
             var entity = ohm.entityClasses.Dog.create({value: 'ted', masterId: contactEntities[0].getId()});
             return new p(function (resolve) {
               entity.save().nodeify(function (err) {
-                console.log('err :', err);
-                expect(err).to.have.property('name', 'ConflictError');
+                expect(err).to.have.property('name', 'EntityConflictError');
+                expect(err).to.have.property('type', 'dog');
+                expect(err).to.have.property('attrName', 'masterId');
+                expect(err).to.have.property('attrValue', contactEntities[0].getId());
+                expect(err.toString()).to.equal(util.format('EntityConflictError: entity "dog" conflict for "masterId" with value "%s"', contactEntities[0].getId()));
                 resolve();
               });
             });
@@ -646,7 +726,11 @@ describe('hw-redis-ohm', function () {
           function loadGroupFromBadId() {
             return new p(function (resolve) {
               ohm.entityClasses.Group.load('badid').nodeify(function (err) {
-                expect(err).to.have.property('name', 'NotFoundError');
+                expect(err).to.have.property('name', 'EntityNotFoundError');
+                expect(err).to.have.property('type', 'group');
+                expect(err).to.have.property('attrName', 'id');
+                expect(err).to.have.property('attrValue', 'badid');
+                expect(err.toString()).to.equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
                 resolve();
               });
             });
@@ -717,7 +801,11 @@ describe('hw-redis-ohm', function () {
           function deleteGroupByBadId() {
             return new p(function (resolve) {
               ohm.entityClasses.Group.delete('badid').nodeify(function (err) {
-                expect(err).to.have.property('name', 'NotFoundError');
+                expect(err).to.have.property('name', 'EntityNotFoundError');
+                expect(err).to.have.property('type', 'group');
+                expect(err).to.have.property('attrName', 'id');
+                expect(err).to.have.property('attrValue', 'badid');
+                expect(err.toString()).to.equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
                 resolve();
               });
             });
@@ -736,7 +824,11 @@ describe('hw-redis-ohm', function () {
             return new p(function (resolve) {
               delete groupEntities[0].value.id;
               groupEntities[0].delete().nodeify(function (err) {
-                expect(err).to.have.property('name', 'BadFormatError');
+                expect(err).to.have.property('name', 'EntityValidationError');
+                expect(err).to.have.property('type', 'group');
+                expect(err).to.have.property('attrName', 'id');
+                expect(err).to.have.property('attrValue').that.is.undefined;
+                expect(err.toString()).to.equal('EntityValidationError: entity "group" validation failed for "id" with value "undefined"');
                 resolve();
               });
             });
