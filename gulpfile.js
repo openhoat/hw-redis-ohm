@@ -3,6 +3,7 @@
 var _ = require('lodash')
   , chalk = require('chalk')
   , checkstyleReporter = require('gulp-jshint-checkstyle-reporter')
+  , coveralls = require('gulp-coveralls')
   , debug = require('gulp-debug')
   , del = require('del')
   , gulp = require('gulp')
@@ -101,13 +102,12 @@ config = {
   },
   coverage: {
     instrument: {
-      pattern: ['config/**/*.js', 'lib/**/*.js']
+      pattern: ['lib/**/*.js']
     },
-    reporters: ['text', 'html'],
+    reporters: ['text', 'html', 'lcov'],
     reportOpts: {
-      html: {
-        file: 'coverage.html'
-      }
+      html: {file: 'coverage.html'},
+      lcov: {file: 'lcov.info'}
     }
   }
 };
@@ -116,17 +116,23 @@ _.merge(config, {
   coverage: {
     reportOpts: {
       html: {
-        dir: config.reportDir
+        dir: path.join(config.reportDir, 'coverage/html')
+      },
+      lcov: {
+        dir: path.join(config.reportDir, 'coverage/lcov')
       }
     }
+  },
+  coveralls: {
+    src: [path.join(config.reportDir, 'coverage/lcov/lcov.info')]
   }
 });
 
 if (jenkins) {
-  process.env['XUNIT_FILE'] = 'dist/reports/test.xml';
+  process.env['XUNIT_FILE'] = path.join(config.reportDir, 'test/xunit.xml');
   config.coverage.reporters.push('cobertura');
   config.coverage.reportOpts.cobertura = {
-    dir: config.reportDir,
+    dir: path.join(config.reportDir, 'coverage/cobertura'),
     file: 'coverage.xml'
   };
 }
@@ -211,7 +217,7 @@ taskSpecs = {
   },
   coverage: {
     default: {
-      desc: 'Run mocha spec coverage',
+      desc: 'Run istanbul test coverage',
       deps: 'prepare',
       config: {src: config.test.src},
       task: function (t) {
@@ -232,6 +238,17 @@ taskSpecs = {
         return gulp.src(t.config.src)
           .pipe(istanbul())
           .pipe(istanbul.hookRequire());
+      }
+    }
+  },
+  coveralls: {
+    default: {
+      desc: 'Submit code coverage to coveralls',
+      deps: '../coverage',
+      config: {src: config.coveralls.src},
+      task: function (t) {
+        return gulp.src(t.config.src, {read: false})
+          .pipe(coveralls());
       }
     }
   },

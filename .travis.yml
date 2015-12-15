@@ -4,8 +4,8 @@ node_js: 0.12
 
 services: redis-server
 
-before_script: "npm i -g mocha grunt-cli"
+before_script: "npm i -g mocha gulp-cli"
 
-script: "grunt test"
+script: "gulp test"
 
-after_script: "grunt coveralls"
+after_script: "gulp coveralls"
