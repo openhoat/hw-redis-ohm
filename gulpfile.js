@@ -83,6 +83,7 @@ config = {
   reportDir: 'dist/reports',
   jshint: {
     src: [
+      'gulpfile.js',
       'lib/**/*.js',
       'spec/**/*.js'
     ],
