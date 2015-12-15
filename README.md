@@ -6,4 +6,4 @@
 
 Object-Hash mapping nodejs module for redis.
 
-Watch [test](test) for usage and examples.
+Watch [specs](spec) for usage and examples.
