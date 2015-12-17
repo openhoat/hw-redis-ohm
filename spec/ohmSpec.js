@@ -121,7 +121,7 @@ describe('hw-redis-ohm', function () {
           , value = 'world';
         return ohm.exec('unknowncommand', key, value)
           .catch(function (err) {
-            expect(err).to.be.an.instanceof(ohm.errors.UnsupportedOhmError);
+            expect(err).to.be.an.instanceof(ohm.e.UnsupportedOhmError);
             expect(err).to.have.property('name', 'UnsupportedOhmError');
             expect(err).to.have.property('message', 'unsupported operation "unknowncommand" error');
             expect(err.toString()).to.equal('UnsupportedOhmError: unsupported operation "unknowncommand" error');
@@ -132,7 +132,7 @@ describe('hw-redis-ohm', function () {
         var key = ohm.toHash('hello');
         return ohm.exec('hmset', key, true)
           .catch(function (err) {
-            expect(err).to.be.an.instanceof(ohm.errors.RedisOhmError);
+            expect(err).to.be.an.instanceof(ohm.e.RedisOhmError);
             expect(err).to.have.property('name', 'RedisOhmError');
             expect(err).to.have.property('message', 'redis error "Error: ERR wrong number of arguments for \'hmset\' command"');
             expect(err.toString()).to.equal('RedisOhmError: redis error "Error: ERR wrong number of arguments for \'hmset\' command"');
@@ -145,7 +145,7 @@ describe('hw-redis-ohm', function () {
           , value = 'world';
         return ohm.execMulti(multi, 'unknowncommand', key, value)
           .catch(function (err) {
-            expect(err).to.be.an.instanceof(ohm.errors.UnsupportedOhmError);
+            expect(err).to.be.an.instanceof(ohm.e.UnsupportedOhmError);
             expect(err).to.have.property('name', 'UnsupportedOhmError');
             expect(err).to.have.property('message', 'unsupported operation "unknowncommand" error');
             expect(err.toString()).to.equal('UnsupportedOhmError: unsupported operation "unknowncommand" error');
@@ -160,11 +160,10 @@ describe('hw-redis-ohm', function () {
             return ohm.processMulti(multi);
           })
           .catch(function (err) {
-            expect(err).to.be.an.instanceof(ohm.errors.RedisOhmError);
+            expect(err).to.be.an.instanceof(ohm.e.RedisOhmError);
             expect(err).to.have.property('name', 'RedisOhmError');
             expect(err).to.have.property('message', 'redis error "Error: EXECABORT Transaction discarded because of previous errors."');
-            expect(err).to.have.property('redisError').that.have.property('errors').that.is.an('array').of.length(1);
-            expect(err.redisError.errors[0]).to.have.property('message', 'ERR wrong number of arguments for \'hmset\' command');
+            expect(err).to.have.deep.property('extra.redisError.errors[0].message', 'ERR wrong number of arguments for \'hmset\' command');
             expect(err.toString()).to.equal('RedisOhmError: redis error "Error: EXECABORT Transaction discarded because of previous errors."');
           });
       });
@@ -620,7 +619,7 @@ describe('hw-redis-ohm', function () {
     });
 
     it('should fail to get unknown schema', function () {
-      expect(ohm.getSchema.bind(ohm, 'unknown')).to.throw(ohm.errors.EntitySchemaNotFoundError);
+      expect(ohm.getSchema.bind(ohm, 'unknown')).to.throw(ohm.e.EntitySchemaNotFoundError);
     });
 
     describe('entities', function () {
@@ -689,10 +688,11 @@ describe('hw-redis-ohm', function () {
             var entity = ohm.entityClasses.Contact.create(contacts[0]);
             return new p(function (resolve) {
               entity.save().nodeify(function (err) {
+                log.warn('err.stack :', err.stack);
                 expect(err).to.have.property('name', 'EntityConflictError');
-                expect(err).to.have.property('type', 'contact');
-                expect(err).to.have.property('attrName', 'email');
-                expect(err).to.have.property('attrValue', contacts[0].email);
+                expect(err).to.have.deep.property('extra.type', 'contact');
+                expect(err).to.have.deep.property('extra.attrName', 'email');
+                expect(err).to.have.deep.property('extra.attrValue', contacts[0].email);
                 expect(err.toString()).to.equal(util.format('EntityConflictError: entity "contact" conflict for "email" with value "%s"', contacts[0].email));
                 resolve();
               });
@@ -715,9 +715,9 @@ describe('hw-redis-ohm', function () {
             return new p(function (resolve) {
               entity.save().nodeify(function (err) {
                 expect(err).to.have.property('name', 'EntityConflictError');
-                expect(err).to.have.property('type', 'dog');
-                expect(err).to.have.property('attrName', 'masterId');
-                expect(err).to.have.property('attrValue', contactEntities[0].getId());
+                expect(err).to.have.deep.property('extra.type', 'dog');
+                expect(err).to.have.deep.property('extra.attrName', 'masterId');
+                expect(err).to.have.deep.property('extra.attrValue', contactEntities[0].getId());
                 expect(err.toString()).to.equal(util.format('EntityConflictError: entity "dog" conflict for "masterId" with value "%s"', contactEntities[0].getId()));
                 resolve();
               });
@@ -727,9 +727,9 @@ describe('hw-redis-ohm', function () {
             return new p(function (resolve) {
               ohm.entityClasses.Group.load('badid').nodeify(function (err) {
                 expect(err).to.have.property('name', 'EntityNotFoundError');
-                expect(err).to.have.property('type', 'group');
-                expect(err).to.have.property('attrName', 'id');
-                expect(err).to.have.property('attrValue', 'badid');
+                expect(err).to.have.deep.property('extra.type', 'group');
+                expect(err).to.have.deep.property('extra.attrName', 'id');
+                expect(err).to.have.deep.property('extra.attrValue', 'badid');
                 expect(err.toString()).to.equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
                 resolve();
               });
@@ -802,9 +802,9 @@ describe('hw-redis-ohm', function () {
             return new p(function (resolve) {
               ohm.entityClasses.Group.delete('badid').nodeify(function (err) {
                 expect(err).to.have.property('name', 'EntityNotFoundError');
-                expect(err).to.have.property('type', 'group');
-                expect(err).to.have.property('attrName', 'id');
-                expect(err).to.have.property('attrValue', 'badid');
+                expect(err).to.have.deep.property('extra.type', 'group');
+                expect(err).to.have.deep.property('extra.attrName', 'id');
+                expect(err).to.have.deep.property('extra.attrValue', 'badid');
                 expect(err.toString()).to.equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
                 resolve();
               });
@@ -825,9 +825,9 @@ describe('hw-redis-ohm', function () {
               delete groupEntities[0].value.id;
               groupEntities[0].delete().nodeify(function (err) {
                 expect(err).to.have.property('name', 'EntityValidationError');
-                expect(err).to.have.property('type', 'group');
-                expect(err).to.have.property('attrName', 'id');
-                expect(err).to.have.property('attrValue').that.is.undefined;
+                expect(err).to.have.deep.property('extra.type', 'group');
+                expect(err).to.have.deep.property('extra.attrName', 'id');
+                expect(err).to.have.deep.property('extra.attrValue').that.is.undefined;
                 expect(err.toString()).to.equal('EntityValidationError: entity "group" validation failed for "id" with value "undefined"');
                 resolve();
               });
