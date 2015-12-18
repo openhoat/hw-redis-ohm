@@ -14,8 +14,8 @@ describe('hw-redis-ohm', function () {
 
   before(function () {
     logger.registerLevels({redis: 6});
-    logger.setLevel('redis');
-    log.info('logger initialized');
+    logger.setLevel('error');
+    logger.enabledLevels.info && log.info('logger initialized');
   });
 
   describe('ohm life cycle', function () {
@@ -688,7 +688,6 @@ describe('hw-redis-ohm', function () {
             var entity = ohm.entityClasses.Contact.create(contacts[0]);
             return new p(function (resolve) {
               entity.save().nodeify(function (err) {
-                log.warn('err.stack :', err.stack);
                 expect(err).to.have.property('name', 'EntityConflictError');
                 expect(err).to.have.deep.property('extra.type', 'contact');
                 expect(err).to.have.deep.property('extra.attrName', 'email');
