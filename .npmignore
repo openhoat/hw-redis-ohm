@@ -1,6 +1,6 @@
 .idea
 .gitignore
 dist
-Gruntfile.js
-jshint.json
-test
+gulpfile.js
+.jshintrc
+spec
