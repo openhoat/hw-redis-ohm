@@ -134,8 +134,8 @@ describe('hw-redis-ohm', function () {
           .catch(function (err) {
             expect(err).to.be.an.instanceof(ohm.e.RedisOhmError);
             expect(err).to.have.property('name', 'RedisOhmError');
-            expect(err).to.have.property('message', 'redis error "Error: ERR wrong number of arguments for \'hmset\' command"');
-            expect(err.toString()).to.equal('RedisOhmError: redis error "Error: ERR wrong number of arguments for \'hmset\' command"');
+            expect(err).to.have.property('message', 'redis error "ReplyError: ERR wrong number of arguments for \'hmset\' command"');
+            expect(err.toString()).to.equal('RedisOhmError: redis error "ReplyError: ERR wrong number of arguments for \'hmset\' command"');
           });
       });
 
@@ -162,9 +162,9 @@ describe('hw-redis-ohm', function () {
           .catch(function (err) {
             expect(err).to.be.an.instanceof(ohm.e.RedisOhmError);
             expect(err).to.have.property('name', 'RedisOhmError');
-            expect(err).to.have.property('message', 'redis error "Error: EXECABORT Transaction discarded because of previous errors."');
+            expect(err).to.have.property('message', 'redis error "ReplyError: EXECABORT Transaction discarded because of previous errors."');
             expect(err).to.have.deep.property('extra.redisError.errors[0].message', 'ERR wrong number of arguments for \'hmset\' command');
-            expect(err.toString()).to.equal('RedisOhmError: redis error "Error: EXECABORT Transaction discarded because of previous errors."');
+            expect(err.toString()).to.equal('RedisOhmError: redis error "ReplyError: EXECABORT Transaction discarded because of previous errors."');
           });
       });
 
@@ -783,7 +783,7 @@ describe('hw-redis-ohm', function () {
             return ohm.entityClasses.Contact.findByIndex('groupIds', groupEntities[0].getId()).then(function (result) {
               expect(result).to.be.an('array').of.length(2);
               expect(_.first(result)).to.eql(contactEntities[0]);
-              expect(_.rest(result)[0]).to.eql(contactEntities[1]);
+              expect(result[1]).to.eql(contactEntities[1]);
             });
           },
           function findContactByBadGroup() {
