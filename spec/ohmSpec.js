@@ -1,45 +1,34 @@
-'use strict';
-
-var chai = require('chai')
+const chai = require('chai')
   , expect = chai.expect
   , _ = require('lodash')
   , util = require('util')
   , p = require('hw-promise')
   , logger = require('hw-logger')
   , ohm = require('../lib/ohm')
-  , tUtil = require('./test-util')
-  , log = logger.log;
+  , tUtil = require('./test-util');
+//, log = logger.log
 
-describe('hw-redis-ohm', function () {
+describe('hw-redis-ohm', () => {
 
-  before(function () {
+  before(() => {
     logger.registerLevels({redis: 6});
-    logger.setLevel('error');
-    logger.enabledLevels.info && log.info('logger initialized');
   });
 
-  describe('ohm life cycle', function () {
+  describe('ohm life cycle', () => {
 
-    it('should start and stop', function () {
-      return p.do(
-        function () {
-          return ohm.start().then(function (result) {
-            expect(result).to.be.true;
-          });
-        },
-        function () {
-          return tUtil.cleanStore();
-        })
-        .finally(function () {
-          return ohm.stop();
-        });
-    });
+    it('should start and stop', () => p.do(
+      () => ohm.start().then(result => {
+        expect(result).to.be.true;
+      }),
+      () => tUtil.cleanStore()
+        .finally(() => ohm.stop())
+    ));
 
-    it('should start with callback', function (done) {
-      ohm.start(function (err, result) {
+    it('should start with callback', done => {
+      ohm.start((err, result) => {
         expect(err).to.not.be.ok;
         expect(result).to.be.true;
-        ohm.stop(function (err, result) {
+        ohm.stop((err, result) => {
           expect(err).to.not.be.ok;
           expect(result).to.be.true;
           done();
@@ -47,80 +36,62 @@ describe('hw-redis-ohm', function () {
       });
     });
 
-    it('should try to stop when not started', function (done) {
-      ohm.stop(function (err, result) {
+    it('should try to stop when not started', done => {
+      ohm.stop((err, result) => {
         expect(err).to.not.be.ok;
         expect(result).to.be.false;
         done();
       });
     });
 
-    it('should not start twice', function () {
-      return p.do(
-        function () {
-          return ohm.start().then(function (result) {
-            expect(result).to.be.true;
-          });
-        },
-        function () {
-          return tUtil.cleanStore();
-        },
-        function () {
-          return ohm.start().then(function (result) {
-            expect(result).to.be.false;
-          });
+    it('should not start twice', () => p.do(
+      () => ohm.start().then(result => {
+        expect(result).to.be.true;
+      }),
+      () => tUtil.cleanStore(),
+      () => ohm.start()
+        .then(result => {
+          expect(result).to.be.false;
         })
-        .finally(function () {
-          return ohm.stop();
-        });
-    });
+        .finally(() => ohm.stop())
+    ));
 
   });
 
-  describe('ohm features', function () {
+  describe('ohm features', () => {
 
-    before(function () {
-      return p.do(
-        function () {
-          return ohm.start();
-        },
-        function () {
-          return tUtil.cleanStore();
-        });
-    });
+    before(() => p.do(
+      () => ohm.start(),
+      () => tUtil.cleanStore()
+    ));
 
-    after(function () {
-      return p.do(
-        function () {
-          return ohm.stop();
-        });
-    });
+    after(() => p.do(
+      () => ohm.stop()
+    ));
 
-    afterEach(function () {
-      return tUtil.cleanStore();
-    });
+    afterEach(() => tUtil.cleanStore());
 
-    describe('exec', function () {
+    describe('exec', () => {
 
-      it('should execute redis command', function () {
-        var key = ohm.toHash('hello')
+      it('should execute redis command', () => {
+        const key = ohm.toHash('hello')
           , value = 'world';
         return p.do(
-          ohm.exec.bind(null, 'set', key, value),
-          function (result) {
+          () => ohm.exec('set', key, value),
+          result => {
             expect(result).to.equal('OK');
           },
-          ohm.exec.bind(null, 'get', key),
-          function (result) {
+          () => ohm.exec('get', key),
+          result => {
             expect(result).to.equal(value);
           });
       });
 
-      it('should fail to execute unsupported redis command', function () {
-        var key = ohm.toHash('hello')
+      it('should fail to execute unsupported redis command', () => {
+        const key = ohm.toHash('hello')
           , value = 'world';
         return ohm.exec('unknowncommand', key, value)
-          .catch(function (err) {
+          .catch(err => {
             expect(err).to.be.an.instanceof(ohm.e.UnsupportedOhmError);
             expect(err).to.have.property('name', 'UnsupportedOhmError');
             expect(err).to.have.property('message', 'unsupported operation "unknowncommand" error');
@@ -128,10 +99,10 @@ describe('hw-redis-ohm', function () {
           });
       });
 
-      it('should fail to execute hmset with a boolean', function () {
-        var key = ohm.toHash('hello');
+      it('should fail to execute hmset with a boolean', () => {
+        const key = ohm.toHash('hello');
         return ohm.exec('hmset', key, true)
-          .catch(function (err) {
+          .catch(err => {
             expect(err).to.be.an.instanceof(ohm.e.RedisOhmError);
             expect(err).to.have.property('name', 'RedisOhmError');
             expect(err).to.have.property('message', 'redis error "ReplyError: ERR wrong number of arguments for \'hmset\' command"');
@@ -139,12 +110,12 @@ describe('hw-redis-ohm', function () {
           });
       });
 
-      it('should fail to execute unsupported redis multi command', function () {
-        var multi = ohm.multi()
+      it('should fail to execute unsupported redis multi command', () => {
+        const multi = ohm.multi()
           , key = ohm.toHash('hello')
           , value = 'world';
         return ohm.execMulti(multi, 'unknowncommand', key, value)
-          .catch(function (err) {
+          .catch(err => {
             expect(err).to.be.an.instanceof(ohm.e.UnsupportedOhmError);
             expect(err).to.have.property('name', 'UnsupportedOhmError');
             expect(err).to.have.property('message', 'unsupported operation "unknowncommand" error');
@@ -152,14 +123,12 @@ describe('hw-redis-ohm', function () {
           });
       });
 
-      it('should fail to execute multi hmset with a boolean', function () {
-        var multi = ohm.multi()
+      it('should fail to execute multi hmset with a boolean', () => {
+        const multi = ohm.multi()
           , key = ohm.toHash('hello');
         return ohm.execMulti(multi, 'hmset', key, true)
-          .then(function () {
-            return ohm.processMulti(multi);
-          })
-          .catch(function (err) {
+          .then(() => ohm.processMulti(multi))
+          .catch(err => {
             expect(err).to.be.an.instanceof(ohm.e.RedisOhmError);
             expect(err).to.have.property('name', 'RedisOhmError');
             expect(err).to.have.property('message', 'redis error "ReplyError: EXECABORT Transaction discarded because of previous errors."');
@@ -170,40 +139,32 @@ describe('hw-redis-ohm', function () {
 
     });
 
-    describe('transaction', function () {
-      var keys = [ohm.toHash('hello'), ohm.toHash('foo')]
+    describe('transaction', () => {
+      const keys = [ohm.toHash('hello'), ohm.toHash('foo')]
         , values = ['world', 'bar'];
 
-      it('should execute multi', function () {
-        var multi = ohm.multi();
+      it('should execute multi', () => {
+        const multi = ohm.multi();
         return p.do(
-          function () {
-            return p.map(keys, function (key, index) {
-              return ohm.execMulti(multi, 'set', key, values[index]);
-            });
-          },
-          function (results) {
+          () => p.map(keys, (key, index) => ohm.execMulti(multi, 'set', key, values[index])),
+          results => {
             expect(results).to.be.an('array').of.length(values.length);
             return ohm.processMulti(multi);
           },
-          function (results) {
+          results => {
             expect(results).to.be.an('array').of.length(values.length);
-            results.forEach(function (result) {
+            results.forEach(result => {
               expect(result).to.equal('OK');
             });
           },
-          function () {
-            return p.map(keys, function (key) {
-              return ohm.execMulti(multi, 'get', key);
-            });
-          },
-          function (results) {
+          () => p.map(keys, key => ohm.execMulti(multi, 'get', key)),
+          results => {
             expect(results).to.be.an('array').of.length(values.length);
             return ohm.processMulti(multi);
           },
-          function (results) {
+          results => {
             expect(results).to.be.an('array').of.length(values.length);
-            results.forEach(function (result, index) {
+            results.forEach((result, index) => {
               expect(result).to.equal(values[index]);
             });
           });
@@ -211,177 +172,153 @@ describe('hw-redis-ohm', function () {
 
     });
 
-    describe('pub sub', function () {
-      var subChannels = ['sub1', 'sub2']
+    describe('pub sub', () => {
+      const subChannels = ['sub1', 'sub2']
         , messages = [['hello', 'world'], ['foo', 'bar']];
-      it('should subscribe and publish', function () {
-        var counters = _.fill(Array(subChannels.length), 0);
+      it('should subscribe and publish', () => {
+        const counters = _.fill(Array(subChannels.length), 0);
         return p.do(
-          function () {
-            return p.map(counters, function (counter, index) {
-              return new p(function (resolve) {
-                ohm.subscribe(subChannels[index], function (channel, message) {
-                    expect(message).to.equal(messages[index][counters[index]++]);
-                    resolve();
-                  })
-                  .spread(function (channel, count) {
-                    expect(channel).to.equal(subChannels[index]);
-                    expect(count).to.equal(1);
-                  })
-                  .then(function () {
-                    return p.map(messages[index], function (message) {
-                      return ohm.publish(subChannels[index], message);
-                    });
-                  });
-              });
-            });
-          },
-          function () {
-            return p.each(subChannels, function (subChannel) {
-              return ohm.unsubscribe(subChannel)
-                .then(function () {
-                  return ohm.unsubscribe(subChannel);
-                });
-            });
-          },
-          function () {
-            return ohm.unpublish();
-          },
-          function () {
-            return ohm.unpublish();
-          });
+          () => p.map(counters, (counter, index) => new p(resolve => {
+            ohm
+              .subscribe(subChannels[index], (channel, message) => {
+                expect(message).to.equal(messages[index][counters[index]++]);
+                resolve();
+              })
+              .spread((channel, count) => {
+                expect(channel).to.equal(subChannels[index]);
+                expect(count).to.equal(1);
+              })
+              .then(() => p.map(messages[index], message => ohm.publish(subChannels[index], message)));
+          }))
+          ,
+          () => p.each(subChannels, subChannel => ohm.unsubscribe(subChannel)
+            .then(() => ohm.unsubscribe(subChannel))
+          ),
+          () => ohm.unpublish(),
+          () => ohm.unpublish()
+        );
       });
     });
+
   });
 
-  describe('schemas', function () {
-    var schemas;
-
-    before(function () {
-      schemas = {
-        group: {
-          title: 'Group JSON schema',
-          type: 'object',
-          properties: {
-            value: {type: 'string'}
-          },
-          meta: {
-            idGenerator: 'increment',
-            indexes: [{name: 'value', unique: true}],
-            links: [{
-              type: 'hasMany',
-              target: 'contact',
-              as: 'contactIds',
-              foreignKey: 'groupIds'
-            }],
-            operations: {
-              db: {
-                new: {
-                  required: ['value']
-                }
+  describe('schemas', () => {
+    const schemas = {
+      group: {
+        title: 'Group JSON schema',
+        type: 'object',
+        properties: {
+          value: {type: 'string'}
+        },
+        meta: {
+          idGenerator: 'increment',
+          indexes: [{name: 'value', unique: true}],
+          links: [{
+            type: 'hasMany',
+            target: 'contact',
+            as: 'contactIds',
+            foreignKey: 'groupIds'
+          }],
+          operations: {
+            db: {
+              new: {
+                required: ['value']
               }
             }
           }
-        },
-        contact: {
-          title: 'Contact JSON schema',
-          type: 'object',
-          properties: {
-            firstname: {type: 'string'},
-            lastname: {type: 'string'},
-            username: {type: 'string'},
-            password: {type: 'string'},
-            email: {type: 'string', format: 'email'}
-          },
-          meta: {
-            idGenerator: 'increment',
-            indexes: [
-              {name: 'email', unique: true},
-              {name: 'lastname'}
-            ],
-            links: [{
-              type: 'hasMany',
-              target: 'group',
-              as: 'groupIds',
-              foreignKey: 'contactIds'
-            }, {
-              type: 'hasMany',
-              target: 'contact',
-              as: 'friendIds',
-              foreignKey: 'friendIds'
-            }, {
-              type: 'hasOne',
-              target: 'dog',
-              as: 'dogId',
-              foreignKey: 'masterId',
-              unique: true
-            }],
-            operations: {
-              db: {
-                new: {
-                  required: ['username', 'password', 'email']
-                },
-                get: {
-                  excludeProperties: ['password']
-                }
-              }
-            }
-          }
-        },
-        dog: {
-          title: 'Dog JSON schema',
-          type: 'object',
-          properties: {
-            value: {type: 'string'}
-          },
-          meta: {
-            idGenerator: 'increment',
-            indexes: [{name: 'value', unique: true}],
-            links: [{
-              type: 'hasOne',
-              target: 'contact',
-              as: 'masterId',
-              foreignKey: 'dogId',
-              unique: true
-            }],
-            operations: {
-              db: {
-                new: {
-                  includeProperties: ['value'],
-                  extraProperties: {
-                    description: {type: 'string'}
-                  },
-                  required: ['value']
-                }
-              }
-            }
-          }
-        },
-        version: {
-          type: 'string'
         }
-      };
-      return p.do(
-        function () {
-          return ohm.start({schemas: schemas});
+      },
+      contact: {
+        title: 'Contact JSON schema',
+        type: 'object',
+        properties: {
+          firstname: {type: 'string'},
+          lastname: {type: 'string'},
+          username: {type: 'string'},
+          password: {type: 'string'},
+          email: {type: 'string', format: 'email'}
         },
-        function () {
-          return tUtil.cleanStore();
-        });
-    });
+        meta: {
+          idGenerator: 'increment',
+          indexes: [
+            {name: 'email', unique: true},
+            {name: 'lastname'}
+          ],
+          links: [{
+            type: 'hasMany',
+            target: 'group',
+            as: 'groupIds',
+            foreignKey: 'contactIds'
+          }, {
+            type: 'hasMany',
+            target: 'contact',
+            as: 'friendIds',
+            foreignKey: 'friendIds'
+          }, {
+            type: 'hasOne',
+            target: 'dog',
+            as: 'dogId',
+            foreignKey: 'masterId',
+            unique: true
+          }],
+          operations: {
+            db: {
+              new: {
+                required: ['username', 'password', 'email']
+              },
+              get: {
+                excludeProperties: ['password']
+              }
+            }
+          }
+        }
+      },
+      dog: {
+        title: 'Dog JSON schema',
+        type: 'object',
+        properties: {
+          value: {type: 'string'}
+        },
+        meta: {
+          idGenerator: 'increment',
+          indexes: [{name: 'value', unique: true}],
+          links: [{
+            type: 'hasOne',
+            target: 'contact',
+            as: 'masterId',
+            foreignKey: 'dogId',
+            unique: true
+          }],
+          operations: {
+            db: {
+              new: {
+                includeProperties: ['value'],
+                extraProperties: {
+                  description: {type: 'string'}
+                },
+                required: ['value']
+              }
+            }
+          }
+        }
+      },
+      version: {
+        type: 'string'
+      }
+    };
 
-    after(function () {
-      return p.do(
-        function () {
-          return ohm.stop();
-        });
-    });
+    before(() => p.do(
+      () => ohm.start({schemas}),
+      () => tUtil.cleanStore()
+    ));
 
-    afterEach(function () {
-      return tUtil.cleanStore();
-    });
+    after(() => p.do(
+      () => ohm.stop()
+    ));
 
-    it('should have schemas', function () {
+    afterEach(() => tUtil.cleanStore());
+
+    it('should have schemas', () => {
       expect(ohm.schemas).to.be.ok;
       expect(ohm.schemas).to.have.property('group').that.eql({
         title: 'Group JSON schema main default',
@@ -609,8 +546,8 @@ describe('hw-redis-ohm', function () {
       expect(ohm.schemas).to.not.have.property('version');
     });
 
-    it('should get dog schema', function () {
-      var schema = ohm.getSchema('dog');
+    it('should get dog schema', () => {
+      const schema = ohm.getSchema('dog');
       expect(schema).to.be.ok;
       expect(schema).to.have.property('idGenerator');
       expect(schema).to.have.property('indexes').that.is.an('array');
@@ -618,76 +555,71 @@ describe('hw-redis-ohm', function () {
       expect(schema).to.have.property('operations');
     });
 
-    it('should fail to get unknown schema', function () {
+    it('should fail to get unknown schema', () => {
       expect(ohm.getSchema.bind(ohm, 'unknown')).to.throw(ohm.e.EntitySchemaNotFoundError);
     });
 
-    describe('entities', function () {
+    describe('entities', () => {
 
-      it('should create, save, read and delete entities', function () {
-        var groups = [
-          {value: 'vip'},
-          {value: 'admin'}
-        ]
-          , contacts = [
-          {username: 'johndoe', password: 'secret', firstname: 'john', lastname: 'doe', email: 'john@doe.com'},
-          {username: 'janedoe', password: 'secret', firstname: 'jane', lastname: 'doe', email: 'jane@doe.com'}
-        ]
-          , dogs = [
-          {value: 'rex'}
-        ]
+      it('should create, save, read and delete entities', () => {
+        const groups =
+          [
+            {value: 'vip'},
+            {value: 'admin'}
+          ], contacts =
+          [
+            {username: 'johndoe', password: 'secret', firstname: 'john', lastname: 'doe', email: 'john@doe.com'},
+            {username: 'janedoe', password: 'secret', firstname: 'jane', lastname: 'doe', email: 'jane@doe.com'}
+          ], dogs =
+          [
+            {value: 'rex'}
+          ]
           , groupEntities = []
           , contactEntities = []
           , dogEntities = [];
         return p.do(
-          function saveGroups() {
-            return p.map(groups, function (value) {
-              var entity = ohm.entityClasses.Group.create(value);
-              groupEntities.push(entity);
-              return entity.save().then(function (result) {
-                expect(result).to.eql(entity);
-                expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
-              });
+          () => p.map(groups, value => {
+            const entity = ohm.entityClasses.Group.create(value);
+            groupEntities.push(entity);
+            return entity.save().then(result => {
+              expect(result).to.eql(entity);
+              expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
             });
-          },
-          function loadGroup() {
-            return p.map(groupEntities, function (groupEntity) {
-              return ohm.entityClasses.Group.load(groupEntity.getId()).then(function (result) {
-                groupEntity.value.contactIds = result.value.contactIds;
-                expect(result).to.eql(groupEntity);
-              });
-            });
-          },
-          function updateGroup() {
-            var groupEntity = groupEntities[0];
+          }),
+          () => p.map(groupEntities, groupEntity => ohm.entityClasses.Group.load(groupEntity.getId())
+            .then(result => {
+              groupEntity.value.contactIds = result.value.contactIds;
+              expect(result).to.eql(groupEntity);
+            })
+          ),
+          () => {
+            const groupEntity = groupEntities[0];
             groupEntity.value.value = 'VIP';
-            return ohm.entityClasses.Group.update(groupEntity.value).then(function (result) {
+            return ohm.entityClasses.Group.update(groupEntity.value).then(result => {
               expect(result).to.eql(groupEntity);
             });
           },
-          function associateContactsWithGroups() {
-            contacts.forEach(function (contact, index) {
-              var groupIds = [], i;
-              for (i = 0; i < index + 1; i++) {
+          () => {
+            contacts.forEach((contact, index) => {
+              const groupIds = [];
+              for (let i = 0; i < index + 1; i++) {
                 groupIds.push(groupEntities[i].value.id);
               }
               contact.groupIds = groupIds;
             });
           },
-          function saveContacts() {
-            return p.map(contacts, function (value) {
-              var entity = ohm.entityClasses.Contact.create(value);
-              contactEntities.push(entity);
-              return entity.save().then(function (result) {
-                expect(result).to.eql(entity);
-                expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
-              });
+          () => p.map(contacts, value => {
+            const entity = ohm.entityClasses.Contact.create(value);
+            contactEntities.push(entity);
+            return entity.save().then(result => {
+              expect(result).to.eql(entity);
+              expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
             });
-          },
-          function saveSameContact() {
-            var entity = ohm.entityClasses.Contact.create(contacts[0]);
-            return new p(function (resolve) {
-              entity.save().nodeify(function (err) {
+          }),
+          () => {
+            const entity = ohm.entityClasses.Contact.create(contacts[0]);
+            return new p(resolve => {
+              entity.save().nodeify(err => {
                 expect(err).to.have.property('name', 'EntityConflictError');
                 expect(err).to.have.deep.property('extra.type', 'contact');
                 expect(err).to.have.deep.property('extra.attrName', 'email');
@@ -697,22 +629,20 @@ describe('hw-redis-ohm', function () {
               });
             });
           },
-          function saveDogs() {
-            return p.map(dogs, function (value, index) {
-              var entity = ohm.entityClasses.Dog.create(value);
-              entity.value.masterId = contactEntities[index].getId();
-              dogEntities.push(entity);
-              return entity.save().then(function (result) {
-                contactEntities[index].value.dogId = result.getId();
-                expect(result).to.eql(entity);
-                expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
-              });
+          () => p.map(dogs, (value, index) => {
+            const entity = ohm.entityClasses.Dog.create(value);
+            entity.value.masterId = contactEntities[index].getId();
+            dogEntities.push(entity);
+            return entity.save().then(result => {
+              contactEntities[index].value.dogId = result.getId();
+              expect(result).to.eql(entity);
+              expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
             });
-          },
-          function saveSameDog() {
-            var entity = ohm.entityClasses.Dog.create({value: 'ted', masterId: contactEntities[0].getId()});
-            return new p(function (resolve) {
-              entity.save().nodeify(function (err) {
+          }),
+          () => {
+            const entity = ohm.entityClasses.Dog.create({value: 'ted', masterId: contactEntities[0].getId()});
+            return new p(resolve => {
+              entity.save().nodeify(err => {
                 expect(err).to.have.property('name', 'EntityConflictError');
                 expect(err).to.have.deep.property('extra.type', 'dog');
                 expect(err).to.have.deep.property('extra.attrName', 'masterId');
@@ -722,137 +652,98 @@ describe('hw-redis-ohm', function () {
               });
             });
           },
-          function loadGroupFromBadId() {
-            return new p(function (resolve) {
-              ohm.entityClasses.Group.load('badid').nodeify(function (err) {
-                expect(err).to.have.property('name', 'EntityNotFoundError');
-                expect(err).to.have.deep.property('extra.type', 'group');
-                expect(err).to.have.deep.property('extra.attrName', 'id');
-                expect(err).to.have.deep.property('extra.attrValue', 'badid');
-                expect(err.toString()).to.equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
-                resolve();
-              });
+          () => new p(resolve => {
+            ohm.entityClasses.Group.load('badid').nodeify(err => {
+              expect(err).to.have.property('name', 'EntityNotFoundError');
+              expect(err).to.have.deep.property('extra.type', 'group');
+              expect(err).to.have.deep.property('extra.attrName', 'id');
+              expect(err).to.have.deep.property('extra.attrValue', 'badid');
+              expect(err.toString()).to.equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
+              resolve();
             });
-          },
-          function loadGroup() {
-            return p.map(groupEntities, function (groupEntity) {
-              return ohm.entityClasses.Group.load(groupEntity.getId()).then(function (result) {
-                groupEntity.value.contactIds = result.value.contactIds;
-                expect(result).to.eql(groupEntity);
-              });
-            });
-          },
-          function listGroups() {
-            return ohm.entityClasses.Group.list('id').then(function (result) {
-              expect(result).to.eql(groupEntities);
-            });
-          },
-          function loadContact() {
-            var entity = _.first(contactEntities);
-            return ohm.entityClasses.Contact.load(entity.getId()).then(function (result) {
+          }),
+          () => p.map(groupEntities, groupEntity => ohm.entityClasses.Group.load(groupEntity.getId())
+            .then(result => {
+              groupEntity.value.contactIds = result.value.contactIds;
+              expect(result).to.eql(groupEntity);
+            })
+          ),
+          () => ohm.entityClasses.Group.list('id').then(result => {
+            expect(result).to.eql(groupEntities);
+          }),
+          () => {
+            const entity = _.first(contactEntities);
+            return ohm.entityClasses.Contact.load(entity.getId()).then(result => {
               expect(result).to.eql(entity);
             });
           },
-          function findContactOfDog() {
-            return ohm.entityClasses.Contact.findByIndex('dogId', dogEntities[0].getId()).then(function (result) {
-              expect(result).to.be.an('array').of.length(1);
+          () => ohm.entityClasses.Contact.findByIndex('dogId', dogEntities[0].getId()).then(result => {
+            expect(result).to.be.an('array').of.length(1);
+          }),
+          () => ohm.entityClasses.Contact.findByIndex('unknown', 'hello').then(result => {
+            expect(result).to.be.an('array').of.length(0);
+          }),
+          () => ohm.entityClasses.Contact.findByIndex('email', 'unknown@doe.com').then(result => {
+            expect(result).to.be.an('array').of.length(0);
+          }),
+          () => ohm.entityClasses.Contact.findByIndex('email', 'john@doe.com').then(result => {
+            expect(result).to.be.an('array').of.length(1);
+            expect(_.first(result)).to.eql(_.first(contactEntities));
+          }),
+          () => ohm.entityClasses.Contact.findByIndex('lastname', 'doe').then(result => {
+            expect(result).to.be.an('array').of.length(2);
+          }),
+          () => ohm.entityClasses.Contact.findByIndex('groupIds', groupEntities[0].getId()).then(result => {
+            expect(result).to.be.an('array').of.length(2);
+            expect(_.first(result)).to.eql(contactEntities[0]);
+            expect(result[1]).to.eql(contactEntities[1]);
+          }),
+          () => ohm.entityClasses.Contact.findByIndex('groupIds', 'badid').then(result => {
+            expect(result).to.be.an('array').of.length(0);
+          }),
+          () => ohm.entityClasses.Contact.findByIndex('groupIds', groupEntities[1].getId()).then(result => {
+            expect(result).to.be.an('array').of.length(1);
+            expect(_.first(result)).to.eql(contactEntities[1]);
+          }),
+          () => new p(resolve => {
+            ohm.entityClasses.Group.delete('badid').nodeify(err => {
+              expect(err).to.have.property('name', 'EntityNotFoundError');
+              expect(err).to.have.deep.property('extra.type', 'group');
+              expect(err).to.have.deep.property('extra.attrName', 'id');
+              expect(err).to.have.deep.property('extra.attrValue', 'badid');
+              expect(err.toString()).to.equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
+              resolve();
             });
-          },
-          function findByContactUnknown() {
-            return ohm.entityClasses.Contact.findByIndex('unknown', 'hello').then(function (result) {
-              expect(result).to.be.an('array').of.length(0);
+          }),
+          () => p.map(groupEntities, entity => ohm.entityClasses.Group.delete(entity.getId())),
+          () => p.map(contactEntities, entity => ohm.entityClasses.Contact.delete(entity.getId())),
+          () => new p(resolve => {
+            delete groupEntities[0].value.id;
+            groupEntities[0].delete().nodeify(err => {
+              expect(err).to.have.property('name', 'EntityValidationError');
+              expect(err).to.have.deep.property('extra.type', 'group');
+              expect(err).to.have.deep.property('extra.attrName', 'id');
+              expect(err).to.have.deep.property('extra.attrValue').that.is.undefined;
+              expect(err.toString()).to.equal('EntityValidationError: entity "group" validation failed for "id" with value "undefined"');
+              resolve();
             });
-          },
-          function findContactByBadEmail() {
-            return ohm.entityClasses.Contact.findByIndex('email', 'unknown@doe.com').then(function (result) {
-              expect(result).to.be.an('array').of.length(0);
-            });
-          },
-          function findContactByEmail() {
-            return ohm.entityClasses.Contact.findByIndex('email', 'john@doe.com').then(function (result) {
-              expect(result).to.be.an('array').of.length(1);
-              expect(_.first(result)).to.eql(_.first(contactEntities));
-            });
-          },
-          function findContactByLastname() {
-            return ohm.entityClasses.Contact.findByIndex('lastname', 'doe').then(function (result) {
-              expect(result).to.be.an('array').of.length(2);
-            });
-          },
-          function findContactByGroup() {
-            return ohm.entityClasses.Contact.findByIndex('groupIds', groupEntities[0].getId()).then(function (result) {
-              expect(result).to.be.an('array').of.length(2);
-              expect(_.first(result)).to.eql(contactEntities[0]);
-              expect(result[1]).to.eql(contactEntities[1]);
-            });
-          },
-          function findContactByBadGroup() {
-            return ohm.entityClasses.Contact.findByIndex('groupIds', 'badid').then(function (result) {
-              expect(result).to.be.an('array').of.length(0);
-            });
-          },
-          function findContactByOtherGroup() {
-            return ohm.entityClasses.Contact.findByIndex('groupIds', groupEntities[1].getId()).then(function (result) {
-              expect(result).to.be.an('array').of.length(1);
-              expect(_.first(result)).to.eql(contactEntities[1]);
-            });
-          },
-          function deleteGroupByBadId() {
-            return new p(function (resolve) {
-              ohm.entityClasses.Group.delete('badid').nodeify(function (err) {
-                expect(err).to.have.property('name', 'EntityNotFoundError');
-                expect(err).to.have.deep.property('extra.type', 'group');
-                expect(err).to.have.deep.property('extra.attrName', 'id');
-                expect(err).to.have.deep.property('extra.attrValue', 'badid');
-                expect(err.toString()).to.equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
-                resolve();
-              });
-            });
-          },
-          function deleteGroups() {
-            return p.map(groupEntities, function (entity) {
-              return ohm.entityClasses.Group.delete(entity.getId());
-            });
-          },
-          function deleteContacts() {
-            return p.map(contactEntities, function (entity) {
-              return ohm.entityClasses.Contact.delete(entity.getId());
-            });
-          },
-          function deleteBadEntity() {
-            return new p(function (resolve) {
-              delete groupEntities[0].value.id;
-              groupEntities[0].delete().nodeify(function (err) {
-                expect(err).to.have.property('name', 'EntityValidationError');
-                expect(err).to.have.deep.property('extra.type', 'group');
-                expect(err).to.have.deep.property('extra.attrName', 'id');
-                expect(err).to.have.deep.property('extra.attrValue').that.is.undefined;
-                expect(err.toString()).to.equal('EntityValidationError: entity "group" validation failed for "id" with value "undefined"');
-                resolve();
-              });
-            });
-          },
-          function deleteDogs() {
-            return p.map(dogEntities, function (entity) {
-              return ohm.entityClasses.Dog.delete(entity.getId());
-            });
-          }
+          }),
+          () => p.map(dogEntities, entity => ohm.entityClasses.Dog.delete(entity.getId()))
         );
       });
 
-      it('should save contact with optional attrs', function () {
-        var entity = ohm.entityClasses.Contact.create({
+      it('should save contact with optional attrs', () => {
+        const entity = ohm.entityClasses.Contact.create({
           username: 'undoe',
           password: 'secret',
           email: 'un@doe.com',
           firstname: ''
         });
-        return entity.save().then(function (result) {
-          return ohm.entityClasses.Contact.load(result.getId()).then(function (result) {
+        return entity.save().then(result => ohm.entityClasses.Contact.load(result.getId())
+          .then(result => {
             expect(result).to.have.property('value');
             expect(result.value).to.not.have.property('firstname');
-          });
-        });
+          }));
       });
 
     });

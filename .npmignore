@@ -2,5 +2,5 @@
 .gitignore
 dist
 gulpfile.js
-.jshintrc
+.eslintrc.yml
 spec
