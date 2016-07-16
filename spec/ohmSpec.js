@@ -6,7 +6,7 @@ const chai = require('chai')
   , logger = require('hw-logger')
   , ohm = require('../lib/ohm')
   , tUtil = require('./test-util');
-//, log = logger.log
+//, log = logger.log;
 
 describe('hw-redis-ohm', () => {
 

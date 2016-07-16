@@ -1,7 +1,7 @@
 const _ = require('lodash')
   , fs = require('fs')
   , path = require('path')
-  , p = require('hw-promise')
+  , p = require('bluebird')
   , chalk = require('chalk')
   , coveralls = require('gulp-coveralls')
   , debug = require('gulp-debug')
