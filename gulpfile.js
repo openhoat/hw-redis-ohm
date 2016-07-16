@@ -127,7 +127,7 @@ _.merge(config, {
       }
     },
     coveralls: {
-      src: [path.join(config.reportDir, 'coverage/lcov/lcov.info')]
+      src: path.join(config.testReportDir, 'lcov.info')
     }
   }
 });
@@ -256,11 +256,11 @@ taskSpecs = {
       task: t => gulp.src(t.config.src, {read: false})
         .pipe(mocha(config.test.options))
         .pipe(istanbul.writeReports({
-          dir: config.reportDir,
+          dir: config.testReportDir,
           reporters: config.test.coverage.reporters,
-          reportOpts: _.get(config.test.coverage, 'reporter.options')
+          reportOpts: _.get(config.test.coverage, 'reporterOpts')
         }))
-        .pipe(gulp.dest(config.reportDir))
+        .pipe(gulp.dest(config.testReportDir))
     },
     prepare: {
       desc: 'Prepare for test coverage',
