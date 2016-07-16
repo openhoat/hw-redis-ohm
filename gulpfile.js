@@ -252,13 +252,13 @@ taskSpecs = {
     default: {
       desc: 'Run istanbul test coverage',
       deps: ['/mkdir', 'prepare'],
-      config: {src: cmdOpt.include ? toArray(cmdOpt.include, ',', 'spec/%sSpec.js') : config.test.coverage.src},
+      config: {src: cmdOpt.include ? toArray(cmdOpt.include, ',', 'spec/%sSpec.js') : config.test.src},
       task: t => gulp.src(t.config.src, {read: false})
         .pipe(mocha(config.test.options))
         .pipe(istanbul.writeReports({
           dir: config.reportDir,
           reporters: config.test.coverage.reporters,
-          reportOpts: config.test.coverage.reporter.options
+          reportOpts: _.get(config.test.coverage, 'reporter.options')
         }))
         .pipe(gulp.dest(config.reportDir))
     },
