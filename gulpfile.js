@@ -119,10 +119,10 @@ _.merge(config, {
     coverage: {
       reportOpts: {
         html: {
-          dir: path.join(config.reportDir, 'coverage/html')
+          dir: path.join(config.testReportDir, 'coverage/html')
         },
         lcov: {
-          dir: path.join(config.reportDir, 'coverage/lcov')
+          dir: path.join(config.testReportDir, 'coverage/lcov')
         }
       }
     },
@@ -133,10 +133,10 @@ _.merge(config, {
 });
 
 if (jenkins) {
-  process.env['XUNIT_FILE'] = path.join(config.reportDir, 'test/xunit.xml');
+  process.env['XUNIT_FILE'] = path.join(config.testReportDir, 'xunit.xml');
   config.coverage.reporters.push('cobertura');
   config.coverage.reportOpts.cobertura = {
-    dir: path.join(config.reportDir, 'coverage/cobertura'),
+    dir: path.join(config.testReportDir, 'coverage/cobertura'),
     file: 'coverage.xml'
   };
 }
@@ -235,19 +235,6 @@ taskSpecs = {
     task: t => gulp.src(t.config.src, {read: false})
       .pipe(mocha(config.test.options))
   },
-  sources: {
-    desc: 'Get all source files',
-    task: () => gulp.src(config.files.allSources)
-      .pipe(debug({title: '', minimal: true}))
-      .pipe(gulp.dest(config.sourcesListDir))
-  },
-  version: {
-    desc: 'Display package version',
-    task: (t, cb) => {
-      console.log(f('%s/%s', pkg.name, pkg.version));
-      cb();
-    }
-  },
   coverage: {
     default: {
       desc: 'Run istanbul test coverage',
@@ -275,7 +262,7 @@ taskSpecs = {
       desc: 'Submit code coverage to coveralls',
       deps: '../coverage',
       config: {src: config.test.coveralls.src},
-      task: t => gulp.src(t.config.src, {read: false})
+      task: t => gulp.src(t.config.src)
         .pipe(coveralls())
     }
   },
@@ -295,6 +282,19 @@ taskSpecs = {
           this.emit('end');
         })
         .pipe(gulp.dest(path.dirname(dest)));
+    }
+  },
+  sources: {
+    desc: 'Get all source files',
+    task: () => gulp.src(config.files.allSources)
+      .pipe(debug({title: '', minimal: true}))
+      .pipe(gulp.dest(config.sourcesListDir))
+  },
+  version: {
+    desc: 'Display package version',
+    task: (t, cb) => {
+      console.log(f('%s/%s', pkg.name, pkg.version));
+      cb();
     }
   }
 };
