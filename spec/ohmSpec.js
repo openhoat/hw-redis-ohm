@@ -5,8 +5,8 @@ const chai = require('chai')
   , p = require('hw-promise')
   , logger = require('hw-logger')
   , ohm = require('../lib/ohm')
-  , tUtil = require('./test-util');
-//, log = logger.log;
+  , tUtil = require('./test-util')
+  , log = logger.log;
 
 describe('hw-redis-ohm', () => {
 
@@ -232,8 +232,8 @@ describe('hw-redis-ohm', () => {
         title: 'Contact JSON schema',
         type: 'object',
         properties: {
-          firstname: {type: 'string'},
-          lastname: {type: 'string'},
+          firstname: {type: ['string', 'null']},
+          lastname: {type: ['string', 'null']},
           username: {type: 'string'},
           password: {type: 'string'},
           email: {type: 'string', format: 'email'}
@@ -379,8 +379,8 @@ describe('hw-redis-ohm', () => {
         title: 'Contact JSON schema main default',
         type: 'object',
         properties: {
-          firstname: {type: 'string'},
-          lastname: {type: 'string'},
+          firstname: {type: ['string', 'null']},
+          lastname: {type: ['string', 'null']},
           username: {type: 'string'},
           password: {type: 'string'},
           email: {type: 'string', format: 'email'},
@@ -428,8 +428,8 @@ describe('hw-redis-ohm', () => {
                 title: 'Contact JSON schema db new',
                 type: 'object',
                 properties: {
-                  firstname: {type: 'string'},
-                  lastname: {type: 'string'},
+                  firstname: {type: ['string', 'null']},
+                  lastname: {type: ['string', 'null']},
                   username: {type: 'string'},
                   password: {type: 'string'},
                   email: {type: 'string', format: 'email'},
@@ -451,8 +451,8 @@ describe('hw-redis-ohm', () => {
                 title: 'Contact JSON schema db get',
                 type: 'object',
                 properties: {
-                  firstname: {type: 'string'},
-                  lastname: {type: 'string'},
+                  firstname: {type: ['string', 'null']},
+                  lastname: {type: ['string', 'null']},
                   username: {type: 'string'},
                   email: {type: 'string', format: 'email'},
                   id: {type: 'string', pattern: '^[0-9]+$'},
@@ -473,8 +473,8 @@ describe('hw-redis-ohm', () => {
                 required: ['id'],
                 minProperties: 2,
                 properties: {
-                  firstname: {type: 'string'},
-                  lastname: {type: 'string'},
+                  firstname: {type: ['string', 'null']},
+                  lastname: {type: ['string', 'null']},
                   username: {type: 'string'},
                   password: {type: 'string'},
                   email: {type: 'string', format: 'email'},
@@ -737,13 +737,26 @@ describe('hw-redis-ohm', () => {
           username: 'undoe',
           password: 'secret',
           email: 'un@doe.com',
-          firstname: ''
+          firstname: 'john'
         });
-        return entity.save().then(result => ohm.entityClasses.Contact.load(result.getId())
+        return entity.save()
+          .then(result => ohm.entityClasses.Contact.load(result.getId()))
+          .then(result => {
+            expect(result).to.have.property('value');
+            expect(result.value).to.have.property('firstname', 'john');
+            return result;
+          })
+          .then(entity => { // should remove firstname property
+            entity.value.password = 'secret';
+            entity.value.firstname = null;
+            return entity.update();
+          })
+          .then(result => ohm.entityClasses.Contact.load(result.getId()))
           .then(result => {
             expect(result).to.have.property('value');
             expect(result.value).to.not.have.property('firstname');
-          }));
+            return result;
+          });
       });
 
     });
