@@ -1,12 +1,11 @@
-const chai = require('chai')
-  , expect = chai.expect
-  , _ = require('lodash')
-  , util = require('util')
-  , p = require('hw-promise')
-  , logger = require('hw-logger')
-  , ohm = require('../lib/ohm')
-  , tUtil = require('./test-util')
-  , log = logger.log;
+const Promise = require('bluebird');
+const chai = require('chai');
+const _ = require('lodash');
+const util = require('util');
+const logger = require('hw-logger');
+const ohm = require('../lib/ohm');
+const tUtil = require('./test-util');
+const expect = chai.expect;
 
 describe('hw-redis-ohm', () => {
 
@@ -16,13 +15,13 @@ describe('hw-redis-ohm', () => {
 
   describe('ohm life cycle', () => {
 
-    it('should start and stop', () => p.do(
-      () => ohm.start().then(result => {
+    it('should start and stop', () => ohm.start()
+      .then(result => {
         expect(result).to.be.true;
-      }),
-      () => tUtil.cleanStore()
-        .finally(() => ohm.stop())
-    ));
+      })
+      .then(() => tUtil.cleanStore())
+      .finally(() => ohm.stop())
+    );
 
     it('should start with callback', done => {
       ohm.start((err, result) => {
@@ -44,30 +43,27 @@ describe('hw-redis-ohm', () => {
       });
     });
 
-    it('should not start twice', () => p.do(
-      () => ohm.start().then(result => {
+    it('should not start twice', () => ohm.start()
+      .then(result => {
         expect(result).to.be.true;
-      }),
-      () => tUtil.cleanStore(),
-      () => ohm.start()
-        .then(result => {
-          expect(result).to.be.false;
-        })
-        .finally(() => ohm.stop())
-    ));
+      })
+      .then(() => tUtil.cleanStore())
+      .then(() => ohm.start())
+      .then(result => {
+        expect(result).to.be.false;
+      })
+      .finally(() => ohm.stop())
+    );
 
   });
 
   describe('ohm features', () => {
 
-    before(() => p.do(
-      () => ohm.start(),
-      () => tUtil.cleanStore()
-    ));
+    before(() => ohm.start()
+      .then(() => tUtil.cleanStore()
+      ));
 
-    after(() => p.do(
-      () => ohm.stop()
-    ));
+    after(() => ohm.stop());
 
     afterEach(() => tUtil.cleanStore());
 
@@ -76,13 +72,12 @@ describe('hw-redis-ohm', () => {
       it('should execute redis command', () => {
         const key = ohm.toHash('hello')
           , value = 'world';
-        return p.do(
-          () => ohm.exec('set', key, value),
-          result => {
+        return ohm.exec('set', key, value)
+          .then(result => {
             expect(result).to.equal('OK');
-          },
-          () => ohm.exec('get', key),
-          result => {
+          })
+          .then(() => ohm.exec('get', key))
+          .then(result => {
             expect(result).to.equal(value);
           });
       });
@@ -145,24 +140,23 @@ describe('hw-redis-ohm', () => {
 
       it('should execute multi', () => {
         const multi = ohm.multi();
-        return p.do(
-          () => p.map(keys, (key, index) => ohm.execMulti(multi, 'set', key, values[index])),
-          results => {
+        return Promise.map(keys, (key, index) => ohm.execMulti(multi, 'set', key, values[index]))
+          .then(results => {
             expect(results).to.be.an('array').of.length(values.length);
             return ohm.processMulti(multi);
-          },
-          results => {
+          })
+          .then(results => {
             expect(results).to.be.an('array').of.length(values.length);
             results.forEach(result => {
               expect(result).to.equal('OK');
             });
-          },
-          () => p.map(keys, key => ohm.execMulti(multi, 'get', key)),
-          results => {
+          })
+          .then(() => Promise.map(keys, key => ohm.execMulti(multi, 'get', key)))
+          .then(results => {
             expect(results).to.be.an('array').of.length(values.length);
             return ohm.processMulti(multi);
-          },
-          results => {
+          })
+          .then(results => {
             expect(results).to.be.an('array').of.length(values.length);
             results.forEach((result, index) => {
               expect(result).to.equal(values[index]);
@@ -176,27 +170,27 @@ describe('hw-redis-ohm', () => {
       const subChannels = ['sub1', 'sub2']
         , messages = [['hello', 'world'], ['foo', 'bar']];
       it('should subscribe and publish', () => {
-        const counters = _.fill(Array(subChannels.length), 0);
-        return p.do(
-          () => p.map(counters, (counter, index) => new p(resolve => {
-            ohm
-              .subscribe(subChannels[index], (channel, message) => {
-                expect(message).to.equal(messages[index][counters[index]++]);
-                resolve();
-              })
-              .spread((channel, count) => {
-                expect(channel).to.equal(subChannels[index]);
-                expect(count).to.equal(1);
-              })
-              .then(() => p.map(messages[index], message => ohm.publish(subChannels[index], message)));
-          }))
-          ,
-          () => p.each(subChannels, subChannel => ohm.unsubscribe(subChannel)
+        const counters = _.fill(new Array(subChannels.length), 0);
+        return Promise.map(counters, (counter, index) =>
+            new Promise(resolve => {
+              ohm
+                .subscribe(subChannels[index], (channel, message) => {
+                  expect(message).to.equal(messages[index][counters[index]++]);
+                  resolve();
+                })
+                .spread((channel, count) => {
+                  expect(channel).to.equal(subChannels[index]);
+                  expect(count).to.equal(1);
+                })
+                .then(() => Promise.map(messages[index], message => ohm.publish(subChannels[index], message)));
+            })
+          )
+          .then(() => Promise.each(subChannels, subChannel => ohm.unsubscribe(subChannel)
             .then(() => ohm.unsubscribe(subChannel))
-          ),
-          () => ohm.unpublish(),
-          () => ohm.unpublish()
-        );
+          ))
+          .then(() => ohm.unpublish())
+          .then(() => ohm.unpublish()
+          );
       });
     });
 
@@ -307,14 +301,11 @@ describe('hw-redis-ohm', () => {
       }
     };
 
-    before(() => p.do(
-      () => ohm.start({schemas}),
-      () => tUtil.cleanStore()
-    ));
+    before(() => ohm.start({schemas})
+      .then(() => tUtil.cleanStore()
+      ));
 
-    after(() => p.do(
-      () => ohm.stop()
-    ));
+    after(() => ohm.stop());
 
     afterEach(() => tUtil.cleanStore());
 
@@ -556,50 +547,53 @@ describe('hw-redis-ohm', () => {
     });
 
     it('should fail to get unknown schema', () => {
-      expect(ohm.getSchema.bind(ohm, 'unknown')).to.throw(ohm.e.EntitySchemaNotFoundError);
+      expect(() => ohm.getSchema('unknown')).to.throw(ohm.e.EntitySchemaNotFoundError);
     });
 
     describe('entities', () => {
 
       it('should create, save, read and delete entities', () => {
-        const groups =
-          [
-            {value: 'vip'},
-            {value: 'admin'}
-          ], contacts =
-          [
-            {username: 'johndoe', password: 'secret', firstname: 'john', lastname: 'doe', email: 'john@doe.com'},
-            {username: 'janedoe', password: 'secret', firstname: 'jane', lastname: 'doe', email: 'jane@doe.com'}
-          ], dogs =
-          [
-            {value: 'rex'}
-          ]
-          , groupEntities = []
-          , contactEntities = []
-          , dogEntities = [];
-        return p.do(
-          () => p.map(groups, value => {
+        const groups = [
+          {value: 'vip'},
+          {value: 'admin'}
+        ];
+        const contacts = [
+          {username: 'johndoe', password: 'secret', firstname: 'john', lastname: 'doe', email: 'john@doe.com'},
+          {username: 'janedoe', password: 'secret', firstname: 'jane', lastname: 'doe', email: 'jane@doe.com'}
+        ];
+        const dogs = [
+          {value: 'rex'}
+        ];
+        const groupEntities = [];
+        const contactEntities = [];
+        const dogEntities = [];
+        return Promise
+          .map(groups, value => {
             const entity = ohm.entityClasses.Group.create(value);
             groupEntities.push(entity);
-            return entity.save().then(result => {
-              expect(result).to.eql(entity);
-              expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
-            });
-          }),
-          () => p.map(groupEntities, groupEntity => ohm.entityClasses.Group.load(groupEntity.getId())
-            .then(result => {
-              groupEntity.value.contactIds = result.value.contactIds;
-              expect(result).to.eql(groupEntity);
-            })
-          ),
-          () => {
+            return entity.save()
+              .then(result => {
+                expect(result).to.eql(entity);
+                expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
+              });
+          })
+          .then(() => Promise
+            .map(groupEntities, groupEntity => ohm.entityClasses.Group
+              .load(groupEntity.getId())
+              .then(result => {
+                groupEntity.value.contactIds = result.value.contactIds;
+                expect(result).to.eql(groupEntity);
+              })
+            ))
+          .then(() => {
             const groupEntity = groupEntities[0];
             groupEntity.value.value = 'VIP';
-            return ohm.entityClasses.Group.update(groupEntity.value).then(result => {
-              expect(result).to.eql(groupEntity);
-            });
-          },
-          () => {
+            return ohm.entityClasses.Group.update(groupEntity.value)
+              .then(result => {
+                expect(result).to.eql(groupEntity);
+              });
+          })
+          .then(() => {
             contacts.forEach((contact, index) => {
               const groupIds = [];
               for (let i = 0; i < index + 1; i++) {
@@ -607,18 +601,20 @@ describe('hw-redis-ohm', () => {
               }
               contact.groupIds = groupIds;
             });
-          },
-          () => p.map(contacts, value => {
-            const entity = ohm.entityClasses.Contact.create(value);
-            contactEntities.push(entity);
-            return entity.save().then(result => {
-              expect(result).to.eql(entity);
-              expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
-            });
-          }),
-          () => {
+          })
+          .then(() => Promise
+            .map(contacts, value => {
+              const entity = ohm.entityClasses.Contact.create(value);
+              contactEntities.push(entity);
+              return entity.save()
+                .then(result => {
+                  expect(result).to.eql(entity);
+                  expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
+                });
+            }))
+          .then(() => {
             const entity = ohm.entityClasses.Contact.create(contacts[0]);
-            return new p(resolve => {
+            return new Promise(resolve => {
               entity.save().nodeify(err => {
                 expect(err).to.have.property('name', 'EntityConflictError');
                 expect(err).to.have.deep.property('extra.type', 'contact');
@@ -628,20 +624,22 @@ describe('hw-redis-ohm', () => {
                 resolve();
               });
             });
-          },
-          () => p.map(dogs, (value, index) => {
-            const entity = ohm.entityClasses.Dog.create(value);
-            entity.value.masterId = contactEntities[index].getId();
-            dogEntities.push(entity);
-            return entity.save().then(result => {
-              contactEntities[index].value.dogId = result.getId();
-              expect(result).to.eql(entity);
-              expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
-            });
-          }),
-          () => {
+          })
+          .then(() => Promise
+            .map(dogs, (value, index) => {
+              const entity = ohm.entityClasses.Dog.create(value);
+              entity.value.masterId = contactEntities[index].getId();
+              dogEntities.push(entity);
+              return entity.save()
+                .then(result => {
+                  contactEntities[index].value.dogId = result.getId();
+                  expect(result).to.eql(entity);
+                  expect(entity.getId()).to.match(new RegExp(ohm.patterns.id));
+                });
+            }))
+          .then(() => {
             const entity = ohm.entityClasses.Dog.create({value: 'ted', masterId: contactEntities[0].getId()});
-            return new p(resolve => {
+            return new Promise(resolve => {
               entity.save().nodeify(err => {
                 expect(err).to.have.property('name', 'EntityConflictError');
                 expect(err).to.have.deep.property('extra.type', 'dog');
@@ -651,8 +649,8 @@ describe('hw-redis-ohm', () => {
                 resolve();
               });
             });
-          },
-          () => new p(resolve => {
+          })
+          .then(() => new Promise(resolve => {
             ohm.entityClasses.Group.load('badid').nodeify(err => {
               expect(err).to.have.property('name', 'EntityNotFoundError');
               expect(err).to.have.deep.property('extra.type', 'group');
@@ -661,63 +659,73 @@ describe('hw-redis-ohm', () => {
               expect(err.toString()).to.equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
               resolve();
             });
-          }),
-          () => p.map(groupEntities, groupEntity => ohm.entityClasses.Group.load(groupEntity.getId())
+          }))
+          .then(() => Promise
+            .map(groupEntities, groupEntity => ohm.entityClasses.Group
+              .load(groupEntity.getId())
+              .then(result => {
+                groupEntity.value.contactIds = result.value.contactIds;
+                expect(result).to.eql(groupEntity);
+              })
+            ))
+          .then(() => ohm.entityClasses.Group.list('id')
             .then(result => {
-              groupEntity.value.contactIds = result.value.contactIds;
-              expect(result).to.eql(groupEntity);
+              expect(result).to.eql(groupEntities);
             })
-          ),
-          () => ohm.entityClasses.Group.list('id').then(result => {
-            expect(result).to.eql(groupEntities);
-          }),
-          () => {
+          )
+          .then(() => {
             const entity = _.first(contactEntities);
             return ohm.entityClasses.Contact.load(entity.getId()).then(result => {
               expect(result).to.eql(entity);
             });
-          },
-          () => ohm.entityClasses.Contact.findByIndex('dogId', dogEntities[0].getId()).then(result => {
+          })
+          .then(() => ohm.entityClasses.Contact.findByIndex('dogId', dogEntities[0].getId()).then(result => {
             expect(result).to.be.an('array').of.length(1);
-          }),
-          () => ohm.entityClasses.Contact.findByIndex('unknown', 'hello').then(result => {
+          }))
+          .then(() => ohm.entityClasses.Contact.findByIndex('unknown', 'hello').then(result => {
             expect(result).to.be.an('array').of.length(0);
-          }),
-          () => ohm.entityClasses.Contact.findByIndex('email', 'unknown@doe.com').then(result => {
+          }))
+          .then(() => ohm.entityClasses.Contact.findByIndex('email', 'unknown@doe.com').then(result => {
             expect(result).to.be.an('array').of.length(0);
-          }),
-          () => ohm.entityClasses.Contact.findByIndex('email', 'john@doe.com').then(result => {
+          }))
+          .then(() => ohm.entityClasses.Contact.findByIndex('email', 'john@doe.com').then(result => {
             expect(result).to.be.an('array').of.length(1);
             expect(_.first(result)).to.eql(_.first(contactEntities));
-          }),
-          () => ohm.entityClasses.Contact.findByIndex('lastname', 'doe').then(result => {
+          }))
+          .then(() => ohm.entityClasses.Contact.findByIndex('lastname', 'doe').then(result => {
             expect(result).to.be.an('array').of.length(2);
-          }),
-          () => ohm.entityClasses.Contact.findByIndex('groupIds', groupEntities[0].getId()).then(result => {
+          }))
+          .then(() => ohm.entityClasses.Contact.findByIndex('groupIds', groupEntities[0].getId()).then(result => {
             expect(result).to.be.an('array').of.length(2);
             expect(_.first(result)).to.eql(contactEntities[0]);
             expect(result[1]).to.eql(contactEntities[1]);
-          }),
-          () => ohm.entityClasses.Contact.findByIndex('groupIds', 'badid').then(result => {
+          }))
+          .then(() => ohm.entityClasses.Contact.findByIndex('groupIds', 'badid').then(result => {
             expect(result).to.be.an('array').of.length(0);
-          }),
-          () => ohm.entityClasses.Contact.findByIndex('groupIds', groupEntities[1].getId()).then(result => {
+          }))
+          .then(() => ohm.entityClasses.Contact.findByIndex('groupIds', groupEntities[1].getId()).then(result => {
             expect(result).to.be.an('array').of.length(1);
             expect(_.first(result)).to.eql(contactEntities[1]);
-          }),
-          () => new p(resolve => {
-            ohm.entityClasses.Group.delete('badid').nodeify(err => {
-              expect(err).to.have.property('name', 'EntityNotFoundError');
-              expect(err).to.have.deep.property('extra.type', 'group');
-              expect(err).to.have.deep.property('extra.attrName', 'id');
-              expect(err).to.have.deep.property('extra.attrValue', 'badid');
-              expect(err.toString()).to.equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
-              resolve();
-            });
-          }),
-          () => p.map(groupEntities, entity => ohm.entityClasses.Group.delete(entity.getId())),
-          () => p.map(contactEntities, entity => ohm.entityClasses.Contact.delete(entity.getId())),
-          () => new p(resolve => {
+          }))
+          .then(() =>
+            new Promise(resolve => {
+              ohm.entityClasses.Group.delete('badid').nodeify(err => {
+                expect(err).to.have.property('name', 'EntityNotFoundError');
+                expect(err).to.have.deep.property('extra.type', 'group');
+                expect(err).to.have.deep.property('extra.attrName', 'id');
+                expect(err).to.have.deep.property('extra.attrValue', 'badid');
+                expect(err.toString()).to.equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
+                resolve();
+              });
+            })
+          )
+          .then(() => Promise
+            .map(groupEntities, entity => ohm.entityClasses.Group.delete(entity.getId()))
+          )
+          .then(() => Promise
+            .map(contactEntities, entity => ohm.entityClasses.Contact.delete(entity.getId()))
+          )
+          .then(() => new Promise(resolve => {
             delete groupEntities[0].value.id;
             groupEntities[0].delete().nodeify(err => {
               expect(err).to.have.property('name', 'EntityValidationError');
@@ -727,9 +735,10 @@ describe('hw-redis-ohm', () => {
               expect(err.toString()).to.equal('EntityValidationError: entity "group" validation failed for "id" with value "undefined"');
               resolve();
             });
-          }),
-          () => p.map(dogEntities, entity => ohm.entityClasses.Dog.delete(entity.getId()))
-        );
+          }))
+          .then(() => Promise
+            .map(dogEntities, entity => ohm.entityClasses.Dog.delete(entity.getId()))
+          );
       });
 
       it('should save contact with optional attrs', () => {
