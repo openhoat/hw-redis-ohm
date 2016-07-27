@@ -217,7 +217,6 @@ describe('hw-redis-ohm', () => {
           value: {type: 'string'}
         },
         meta: {
-          idGenerator: 'increment',
           indexes: [{name: 'value', unique: true}],
           links: [{
             type: 'hasMany',
@@ -245,7 +244,6 @@ describe('hw-redis-ohm', () => {
           email: {type: 'string', format: 'email'}
         },
         meta: {
-          idGenerator: 'increment',
           indexes: [
             {name: 'email', unique: true},
             {name: 'lastname'}
@@ -286,7 +284,6 @@ describe('hw-redis-ohm', () => {
           value: {type: 'string'}
         },
         meta: {
-          idGenerator: 'increment',
           indexes: [{name: 'value', unique: true}],
           links: [{
             type: 'hasOne',
@@ -321,21 +318,17 @@ describe('hw-redis-ohm', () => {
 
     afterEach(() => tUtil.cleanStore());
 
-    it('should have schemas', () => {
+    it.only('should have schemas', () => {
       expect(ohm.schemas).to.be.ok;
       expect(ohm.schemas).to.have.property('group').that.eql({
         title: 'Group JSON schema main default',
         type: 'object',
         properties: {
-          id: {type: 'string', pattern: '^[0-9]+$'},
+          id: ohm.idSchema,
           value: {type: 'string'},
-          contactIds: {
-            type: 'array',
-            items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
-          }
+          contactIds: {type: 'array', items: ohm.idSchema}
         },
         meta: {
-          idGenerator: 'increment',
           indexes: [{name: 'value', unique: true}],
           links: [{type: 'hasMany', target: 'contact', as: 'contactIds', foreignKey: 'groupIds'}],
           operations: {
@@ -345,11 +338,8 @@ describe('hw-redis-ohm', () => {
                 title: 'Group JSON schema db new',
                 type: 'object',
                 properties: {
-                  contactIds: {
-                    type: 'array',
-                    items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
-                  },
-                  value: {type: 'string'}
+                  value: {type: 'string'},
+                  contactIds: {type: 'array', items: ohm.idSchema}
                 }
               },
               save: {
@@ -358,20 +348,17 @@ describe('hw-redis-ohm', () => {
                 title: 'Group JSON schema db save',
                 type: 'object',
                 properties: {
-                  value: {type: 'string'},
-                  id: {type: 'string', pattern: '^[0-9]+$'}
+                  id: ohm.idSchema,
+                  value: {type: 'string'}
                 }
               },
               get: {
                 title: 'Group JSON schema db get',
                 type: 'object',
                 properties: {
-                  contactIds: {
-                    type: 'array',
-                    items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
-                  },
+                  id: ohm.idSchema,
                   value: {type: 'string'},
-                  id: {type: 'string', pattern: '^[0-9]+$'}
+                  contactIds: {type: 'array', items: ohm.idSchema}
                 }
               }
             }
@@ -382,30 +369,17 @@ describe('hw-redis-ohm', () => {
         title: 'Contact JSON schema main default',
         type: 'object',
         properties: {
+          id: ohm.idSchema,
           firstname: {type: ['string', 'null']},
           lastname: {type: ['string', 'null']},
           username: {type: 'string'},
           password: {type: 'string'},
           email: {type: 'string', format: 'email'},
-          id: {type: 'string', pattern: '^[0-9]+$'},
-          groupIds: {
-            type: 'array',
-            items: {
-              type: ['string', 'null'],
-              pattern: '^[0-9]+$'
-            }
-          },
-          friendIds: {
-            type: 'array',
-            items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
-          },
-          dogId: {
-            type: ['string', 'null'],
-            pattern: '^[0-9]+$'
-          }
+          dogId: ohm.idSchema,
+          groupIds: {type: 'array', items: ohm.idSchema},
+          friendIds: {type: 'array', items: ohm.idSchema}
         },
         meta: {
-          idGenerator: 'increment',
           indexes: [{name: 'email', unique: true}, {name: 'lastname'}],
           links: [{
             type: 'hasMany',
@@ -436,38 +410,23 @@ describe('hw-redis-ohm', () => {
                   username: {type: 'string'},
                   password: {type: 'string'},
                   email: {type: 'string', format: 'email'},
-                  groupIds: {
-                    type: 'array',
-                    items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
-                  },
-                  friendIds: {
-                    type: 'array',
-                    items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
-                  },
-                  dogId: {
-                    type: ['string', 'null'],
-                    pattern: '^[0-9]+$'
-                  }
+                  dogId: ohm.idSchema,
+                  groupIds: {type: 'array', items: ohm.idSchema},
+                  friendIds: {type: 'array', items: ohm.idSchema}
                 }
               },
               get: {
                 title: 'Contact JSON schema db get',
                 type: 'object',
                 properties: {
+                  id: ohm.idSchema,
                   firstname: {type: ['string', 'null']},
                   lastname: {type: ['string', 'null']},
                   username: {type: 'string'},
                   email: {type: 'string', format: 'email'},
-                  id: {type: 'string', pattern: '^[0-9]+$'},
-                  groupIds: {
-                    type: 'array',
-                    items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
-                  },
-                  friendIds: {
-                    type: 'array',
-                    items: {type: ['string', 'null'], pattern: '^[0-9]+$'}
-                  },
-                  dogId: {type: ['string', 'null'], pattern: '^[0-9]+$'}
+                  dogId: ohm.idSchema,
+                  groupIds: {type: 'array', items: ohm.idSchema},
+                  friendIds: {type: 'array', items: ohm.idSchema}
                 }
               },
               save: {
@@ -476,12 +435,12 @@ describe('hw-redis-ohm', () => {
                 required: ['id'],
                 minProperties: 2,
                 properties: {
+                  id: ohm.idSchema,
                   firstname: {type: ['string', 'null']},
                   lastname: {type: ['string', 'null']},
                   username: {type: 'string'},
                   password: {type: 'string'},
-                  email: {type: 'string', format: 'email'},
-                  id: {type: 'string', pattern: '^[0-9]+$'}
+                  email: {type: 'string', format: 'email'}
                 }
               }
             }
@@ -492,15 +451,11 @@ describe('hw-redis-ohm', () => {
         title: 'Dog JSON schema main default',
         type: 'object',
         properties: {
+          id: ohm.idSchema,
           value: {type: 'string'},
-          id: {type: 'string', pattern: '^[0-9]+$'},
-          masterId: {
-            type: ['string', 'null'],
-            pattern: '^[0-9]+$'
-          }
+          masterId: ohm.idSchema
         },
         meta: {
-          idGenerator: 'increment',
           indexes: [{name: 'value', unique: true}],
           links: [{
             type: 'hasOne',
@@ -526,20 +481,17 @@ describe('hw-redis-ohm', () => {
                 required: ['id'],
                 minProperties: 2,
                 properties: {
-                  value: {type: 'string'},
-                  id: {type: 'string', pattern: '^[0-9]+$'}
+                  id: ohm.idSchema,
+                  value: {type: 'string'}
                 }
               },
               get: {
                 title: 'Dog JSON schema db get',
                 type: 'object',
                 properties: {
+                  id: ohm.idSchema,
                   value: {type: 'string'},
-                  id: {type: 'string', pattern: '^[0-9]+$'},
-                  masterId: {
-                    type: ['string', 'null'],
-                    pattern: '^[0-9]+$'
-                  }
+                  masterId: ohm.idSchema
                 }
               }
             }
@@ -552,7 +504,6 @@ describe('hw-redis-ohm', () => {
     it('should get dog schema', () => {
       const schema = ohm.getSchema('dog');
       expect(schema).to.be.ok;
-      expect(schema).to.have.property('idGenerator');
       expect(schema).to.have.property('indexes').that.is.an('array');
       expect(schema).to.have.property('links').that.is.an('array');
       expect(schema).to.have.property('operations');
