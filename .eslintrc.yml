@@ -3,7 +3,9 @@ env:
   es6: true
   node: true
   mocha: true
-extends: 'eslint:recommended'
+extends: ['eslint:recommended', 'nodejs']
+plugins:
+  - 'you-dont-need-lodash-underscore'
 rules:
   indent:
     - error
@@ -28,3 +30,38 @@ rules:
   arrow-parens: ["warn", "as-needed"]
   arrow-body-style: ["warn", "as-needed"]
   prefer-const: warn
+  'you-dont-need-lodash-underscore/concat': warn
+  'you-dont-need-lodash-underscore/fill': warn
+  'you-dont-need-lodash-underscore/find': warn
+  'you-dont-need-lodash-underscore/detect': warn
+  'you-dont-need-lodash-underscore/find-index': warn
+  'you-dont-need-lodash-underscore/index-of': warn
+  'you-dont-need-lodash-underscore/join': warn
+  'you-dont-need-lodash-underscore/last-index-of': warn
+  'you-dont-need-lodash-underscore/reverse': warn
+  'you-dont-need-lodash-underscore/each': warn
+  'you-dont-need-lodash-underscore/for-each': warn
+  'you-dont-need-lodash-underscore/every': warn
+  'you-dont-need-lodash-underscore/all': warn
+  'you-dont-need-lodash-underscore/filter': warn
+  'you-dont-need-lodash-underscore/select': warn
+  'you-dont-need-lodash-underscore/includes': warn
+  'you-dont-need-lodash-underscore/contains': warn
+  'you-dont-need-lodash-underscore/map': warn
+  'you-dont-need-lodash-underscore/collect': warn
+  'you-dont-need-lodash-underscore/reduce': warn
+  'you-dont-need-lodash-underscore/inject': warn
+  'you-dont-need-lodash-underscore/foldl': warn
+  'you-dont-need-lodash-underscore/reduce-right': warn
+  'you-dont-need-lodash-underscore/foldr': warn
+  'you-dont-need-lodash-underscore/size': warn
+  'you-dont-need-lodash-underscore/some': warn
+  'you-dont-need-lodash-underscore/any': warn
+  'you-dont-need-lodash-underscore/is-na-n': warn
+  'you-dont-need-lodash-underscore/extend-own': warn
+  'you-dont-need-lodash-underscore/assign': warn
+  'you-dont-need-lodash-underscore/keys': warn
+  'you-dont-need-lodash-underscore/repeat': warn
+  'you-dont-need-lodash-underscore/to-lower': warn
+  'you-dont-need-lodash-underscore/to-upper': warn
+  'you-dont-need-lodash-underscore/trim': warn

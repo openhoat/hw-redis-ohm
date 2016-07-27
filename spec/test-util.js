@@ -1,3 +1,5 @@
+'use strict';
+
 const Promise = require('bluebird');
 const logger = require('hw-logger');
 const ohm = require('../lib/ohm');

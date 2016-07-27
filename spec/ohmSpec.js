@@ -1,3 +1,5 @@
+'use strict';
+
 const Promise = require('bluebird');
 const chai = require('chai');
 const _ = require('lodash');
@@ -100,8 +102,11 @@ describe('hw-redis-ohm', () => {
           .catch(err => {
             expect(err).to.be.an.instanceof(ohm.e.RedisOhmError);
             expect(err).to.have.property('name', 'RedisOhmError');
-            expect(err).to.have.property('message', 'redis error "ReplyError: ERR wrong number of arguments for \'hmset\' command"');
-            expect(err.toString()).to.equal('RedisOhmError: redis error "ReplyError: ERR wrong number of arguments for \'hmset\' command"');
+            expect(err).to.have.property('message',
+              'redis error "ReplyError: ERR wrong number of arguments for \'hmset\' command"'
+            );
+            expect(err.toString()).to
+              .equal('RedisOhmError: redis error "ReplyError: ERR wrong number of arguments for \'hmset\' command"');
           });
       });
 
@@ -126,9 +131,16 @@ describe('hw-redis-ohm', () => {
           .catch(err => {
             expect(err).to.be.an.instanceof(ohm.e.RedisOhmError);
             expect(err).to.have.property('name', 'RedisOhmError');
-            expect(err).to.have.property('message', 'redis error "ReplyError: EXECABORT Transaction discarded because of previous errors."');
-            expect(err).to.have.deep.property('extra.redisError.errors[0].message', 'ERR wrong number of arguments for \'hmset\' command');
-            expect(err.toString()).to.equal('RedisOhmError: redis error "ReplyError: EXECABORT Transaction discarded because of previous errors."');
+            expect(err).to.have.property('message',
+              'redis error "ReplyError: EXECABORT Transaction discarded because of previous errors."'
+            );
+            expect(err).to.have.deep.property('extra.redisError.errors[0].message',
+              'ERR wrong number of arguments for \'hmset\' command'
+            );
+            expect(err.toString()).to
+              .equal('RedisOhmError: redis error ' +
+                '"ReplyError: EXECABORT Transaction discarded because of previous errors."'
+              );
           });
       });
 
@@ -170,7 +182,7 @@ describe('hw-redis-ohm', () => {
       const subChannels = ['sub1', 'sub2']
         , messages = [['hello', 'world'], ['foo', 'bar']];
       it('should subscribe and publish', () => {
-        const counters = _.fill(new Array(subChannels.length), 0);
+        const counters = new Array(subChannels.length).fill(0);
         return Promise.map(counters, (counter, index) =>
             new Promise(resolve => {
               ohm
@@ -620,7 +632,11 @@ describe('hw-redis-ohm', () => {
                 expect(err).to.have.deep.property('extra.type', 'contact');
                 expect(err).to.have.deep.property('extra.attrName', 'email');
                 expect(err).to.have.deep.property('extra.attrValue', contacts[0].email);
-                expect(err.toString()).to.equal(util.format('EntityConflictError: entity "contact" conflict for "email" with value "%s"', contacts[0].email));
+                expect(err.toString()).to.equal(
+                  util.format('EntityConflictError: entity "contact" conflict for "email" with value "%s"',
+                    contacts[0].email
+                  )
+                );
                 resolve();
               });
             });
@@ -645,7 +661,11 @@ describe('hw-redis-ohm', () => {
                 expect(err).to.have.deep.property('extra.type', 'dog');
                 expect(err).to.have.deep.property('extra.attrName', 'masterId');
                 expect(err).to.have.deep.property('extra.attrValue', contactEntities[0].getId());
-                expect(err.toString()).to.equal(util.format('EntityConflictError: entity "dog" conflict for "masterId" with value "%s"', contactEntities[0].getId()));
+                expect(err.toString()).to.equal(
+                  util.format('EntityConflictError: entity "dog" conflict for "masterId" with value "%s"',
+                    contactEntities[0].getId()
+                  )
+                );
                 resolve();
               });
             });
@@ -656,7 +676,8 @@ describe('hw-redis-ohm', () => {
               expect(err).to.have.deep.property('extra.type', 'group');
               expect(err).to.have.deep.property('extra.attrName', 'id');
               expect(err).to.have.deep.property('extra.attrValue', 'badid');
-              expect(err.toString()).to.equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
+              expect(err.toString()).to
+                .equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
               resolve();
             });
           }))
@@ -714,7 +735,8 @@ describe('hw-redis-ohm', () => {
                 expect(err).to.have.deep.property('extra.type', 'group');
                 expect(err).to.have.deep.property('extra.attrName', 'id');
                 expect(err).to.have.deep.property('extra.attrValue', 'badid');
-                expect(err.toString()).to.equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
+                expect(err.toString()).to
+                  .equal('EntityNotFoundError: entity "group" not found for "id" with value "badid"');
                 resolve();
               });
             })
@@ -732,7 +754,8 @@ describe('hw-redis-ohm', () => {
               expect(err).to.have.deep.property('extra.type', 'group');
               expect(err).to.have.deep.property('extra.attrName', 'id');
               expect(err).to.have.deep.property('extra.attrValue').that.is.undefined;
-              expect(err.toString()).to.equal('EntityValidationError: entity "group" validation failed for "id" with value "undefined"');
+              expect(err.toString()).to
+                .equal('EntityValidationError: entity "group" validation failed for "id" with value "undefined"');
               resolve();
             });
           }))

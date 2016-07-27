@@ -1,28 +1,30 @@
-const _ = require('lodash')
-  , fs = require('fs')
-  , path = require('path')
-  , p = require('bluebird')
-  , chalk = require('chalk')
-  , coveralls = require('gulp-coveralls')
-  , debug = require('gulp-debug')
-  , del = require('del')
-  , gulp = require('gulp')
-  , gulpif = require('gulp-if')
-  , gutil = require('gulp-util')
-  , istanbul = require('gulp-istanbul')
-  , eslint = require('gulp-eslint')
-  , licenseFinder = require('gulp-license-finder')
-  , minimist = require('minimist')
-  , mkdirp = require('mkdirp')
-  , mocha = require('gulp-mocha')
-  , notify = require('gulp-notify')
-  , f = require('util').format.bind(null)
-  , pkg = require('./package')
-  , jenkins = !!process.env['JENKINS_URL'];
+'use strict';
+
+const _ = require('lodash');
+const fs = require('fs');
+const path = require('path');
+const Promise = require('bluebird');
+const chalk = require('chalk');
+const coveralls = require('gulp-coveralls');
+const debug = require('gulp-debug');
+const del = require('del');
+const gulp = require('gulp');
+const gulpif = require('gulp-if');
+const gutil = require('gulp-util');
+const istanbul = require('gulp-istanbul');
+const eslint = require('gulp-eslint');
+const licenseFinder = require('gulp-license-finder');
+const minimist = require('minimist');
+const mkdirp = require('mkdirp');
+const mocha = require('gulp-mocha');
+const notify = require('gulp-notify');
+const f = (...args) => require('util').format(...args);
+const pkg = require('./package');
+const jenkins = !!process.env['JENKINS_URL'];
 
 let taskSpecs;
 
-p.promisifyAll(fs);
+Promise.promisifyAll(fs);
 process.env['NODE_ENV'] = 'test';
 
 const toRelativePath = (file, baseDir) => {
@@ -38,7 +40,8 @@ const toArray = (s, sep, format) => s.split(sep || ',').map(item => f(format || 
 const rm = src => del([src], {dryRun: cmdOpt['dry-run']})
   .then(files => {
     if (cmdOpt.verbose) {
-      gutil.log(files && files.length ? $.yellow(f('Files and folders deleted :', toRelativePath(files).join(', '))) : $.yellow(f('Nothing deleted')));
+      gutil.log(files && files.length ? $.yellow(f('Files and folders deleted :', toRelativePath(files)
+        .join(', '))) : $.yellow(f('Nothing deleted')));
     }
   });
 
@@ -67,6 +70,9 @@ if (cmdOpt['log-level']) {
 const $ = new chalk.constructor({enabled: cmdOpt.color});
 process.env['HW_LOG_COLORS'] = cmdOpt.color;
 
+/**
+ * Configuration
+ */
 const config = {
   distDir: 'dist',
   reportDir: 'dist/reports',
@@ -167,7 +173,7 @@ taskSpecs = {
       log($.bold('Tasks'));
       const tasks = [];
       _.forIn(taskSpecs, (taskSpec, taskSpecName) => {
-        const task = _.omit(taskSpec, 'task');
+        const task = _.pick(taskSpec, ['name', 'desc', 'deps', 'config', 'providesFn']);
         l = Math.max(taskSpecName.length, l);
         task.name = taskSpecName;
         task.providesFn = typeof taskSpec.task === 'function';
@@ -176,7 +182,7 @@ taskSpecs = {
       tasks.forEach(task => {
         log(false, '  %s : %s', $.cyan(_.padEnd(task.name, l)), task.desc);
         if (task.deps) {
-          log(false, ' %s', $.yellow(f('[%s]', task.deps.join(', '))));
+          log(false, ' %s', $.yellow(f('[%s]', (Array.isArray(task.deps) ? task.deps : [task.deps]).join(', '))));
         }
         log(false, ' ');
         if (task.config) {
@@ -200,7 +206,7 @@ taskSpecs = {
     config: {
       src: [config.distDir, config.reportDir, config.lintReportDir, config.testReportDir]
     },
-    task: t => p.each(t.config.src, dir => p.fromNode(mkdirp.bind(mkdirp, dir))
+    task: t => Promise.each(t.config.src, dir => Promise.fromNode(mkdirp.bind(mkdirp, dir))
       .then(dir => {
         if (cmdOpt.verbose) {
           gutil.log(dir ? $.yellow(f('Directory created :', toRelativePath(dir))) : $.yellow(f('Nothing created')));
@@ -270,18 +276,18 @@ taskSpecs = {
     desc: 'Find licenses in node project and dependencies',
     task: () => {
       const dest = path.join(config.distDir, 'licenses.csv');
-      return licenseFinder(path.basename(dest),
-        {
-          csv: true,
-          depth: 1
-        })
-        .once('finish', function () {
-          if (cmdOpt.verbose) {
-            gutil.log($.yellow(f('Created license report : %s', dest)));
-          }
-          this.emit('end');
-        })
-        .pipe(gulp.dest(path.dirname(dest)));
+      const lf = licenseFinder(path.basename(dest), {
+        csv: true,
+        depth: 1
+      });
+      lf.once('finish', () => {
+        if (cmdOpt.verbose) {
+          gutil.log($.yellow(f('Created license report : %s', dest)));
+        }
+        lf.emit('end');
+      });
+      lf.pipe(gulp.dest(path.dirname(dest)));
+      return lf;
     }
   },
   sources: {
@@ -299,72 +305,78 @@ taskSpecs = {
   }
 };
 
-const initTasks = () => {
-  const taskSpecTransformer = baseNs => (result, taskSpec, taskSpecName) => {
-    const isTaskGroup = () => !Object.keys(_.pick(taskSpec, ['deps', 'task', 'desc'])).length;
-    const dryRun = () => {
-      if (cmdOpt['dry-run']) {
-        if (_.get(item, 'config.src')) {
-          return gulp.src(item.config.src)
-            .pipe(debug({title: ns}));
-        }
-        return true;
+const taskSpecTransformer = baseNs => (result, taskSpec, taskSpecName) => {
+  const isTaskGroup = () => !Object.keys(_.pick(taskSpec, ['deps', 'task', 'desc'])).length;
+  const dryRun = () => {
+    if (cmdOpt['dry-run']) {
+      if (_.get(item, 'config.src')) {
+        return gulp.src(item.config.src)
+          .pipe(debug({title: ns}));
       }
-    };
-    const ns = baseNs ? (taskSpecName === (_.get(config, 'taskSpecs.defaultGroupTask') || 'default') ? baseNs : path.join(baseNs, taskSpecName)) : taskSpecName;
-    if (isTaskGroup()) {
-      _.transform(taskSpec, taskSpecTransformer(ns), result);
-      return;
+      return true;
     }
-    const item = result[ns] = _.omit(taskSpec, ['desc', 'deps', 'task', 'config']);
-    if (taskSpec.desc) {
-      item.desc = typeof taskSpec.desc === 'function' ? taskSpec.desc(taskSpecName, taskSpec) : taskSpec.desc;
+  };
+  const ns = baseNs ?
+    (
+      taskSpecName === (_.get(config, 'taskSpecs.defaultGroupTask') || 'default') ?
+        baseNs :
+        path.join(baseNs, taskSpecName)
+    ) :
+    taskSpecName;
+  const group = isTaskGroup();
+  if (group) {
+    _.transform(taskSpec, taskSpecTransformer(ns), result);
+    return;
+  }
+  const item = result[ns] = _.omit(taskSpec, ['desc', 'deps', 'task', 'config']);
+  if (taskSpec.desc) {
+    item.desc = typeof taskSpec.desc === 'function' ? taskSpec.desc(taskSpecName, taskSpec) : taskSpec.desc;
+  }
+  if (taskSpec.deps) {
+    item.deps = [];
+    (Array.isArray(taskSpec.deps) ? taskSpec.deps : [taskSpec.deps]).forEach(dep => {
+      if (dep.indexOf('/') === 0) {
+        item.deps.push(dep.substring(1));
+      } else {
+        item.deps.push(baseNs ? path.join(baseNs, dep) : dep);
+      }
+    });
+  }
+  if (typeof taskSpec.task === 'function') {
+    item.task = cb => {
+      if (dryRun(item.config)) {
+        if (!_.get(item, 'config.continueOnDryRun')) {
+          return cb();
+        }
+      }
+      return taskSpec.task(_.omit(item, 'task'), (err, data) => {
+        if (cmdOpt.verbose && data) {
+          gutil.log($.yellow('Task result :', data));
+        }
+        cb(err);
+      });
+    };
+  }
+  if (taskSpec.config) {
+    item.config = taskSpec.config;
+  }
+};
+
+taskSpecs = _.transform(taskSpecs, taskSpecTransformer(), {});
+
+const registerTasks = taskSpecs => {
+  _.forIn(taskSpecs, (taskSpec, taskSpecName) => {
+    const args = [taskSpecName];
+    if (!taskSpec.desc && taskSpec.deps && taskSpec.deps.length === 1) {
+      taskSpec.desc = taskSpecs[_.first(taskSpec.deps)].desc;
     }
     if (taskSpec.deps) {
-      item.deps = [];
-      (Array.isArray(taskSpec.deps) ? taskSpec.deps : [taskSpec.deps]).forEach(dep => {
-        if (dep.indexOf('/') === 0) {
-          item.deps.push(dep.substring(1));
-        } else {
-          item.deps.push(baseNs ? path.join(baseNs, dep) : dep);
-        }
-      });
+      args.push(taskSpec.deps);
     }
-    if (typeof taskSpec.task === 'function') {
-      item.task = cb => {
-        if (dryRun(item.config)) {
-          if (!_.get(item, 'config.continueOnDryRun')) {
-            return cb();
-          }
-        }
-        return taskSpec.task.call(this, _.omit(item, 'task'), (err, data) => {
-          if (cmdOpt.verbose && data) {
-            gutil.log($.yellow('Task result :', data));
-          }
-          cb(err);
-        });
-      };
+    if (taskSpec.task) {
+      args.push(taskSpec.task);
     }
-    if (taskSpec.config) {
-      item.config = taskSpec.config;
-    }
-  };
-  const registerTasks = () => {
-    _.forIn(taskSpecs, (taskSpec, taskSpecName) => {
-      const args = [taskSpecName];
-      if (!taskSpec.desc && taskSpec.deps && taskSpec.deps.length === 1) {
-        taskSpec.desc = taskSpecs[_.first(taskSpec.deps)].desc;
-      }
-      if (taskSpec.deps) {
-        args.push(taskSpec.deps);
-      }
-      if (taskSpec.task) {
-        args.push(taskSpec.task);
-      }
-      gulp.task(...args);
-    });
-  };
-  taskSpecs = _.transform(taskSpecs, taskSpecTransformer(), {});
-  registerTasks();
+    gulp.task(...args);
+  });
 };
-initTasks();
+registerTasks(taskSpecs);
