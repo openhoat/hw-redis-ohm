@@ -296,7 +296,7 @@ describe('hw-redis-ohm', () => {
           operations: {
             db: {
               new: {
-                includeProperties: ['value'],
+                includeProperties: ['id', 'masterId', 'value'],
                 extraProperties: {
                   description: {type: 'string'}
                 },
