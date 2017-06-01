@@ -1,6 +1,6 @@
 {
   "name": "hw-redis-ohm",
-  "version": "0.5.15",
+  "version": "0.5.16",
   "description": "Redis Object Hash Mapping",
   "main": "lib/ohm.js",
   "scripts": {
