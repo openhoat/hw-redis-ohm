@@ -552,7 +552,8 @@ describe('hw-redis-ohm', () => {
           })
           .then(() => new Promise(
             resolve => {
-              groupEntities[0].save().asCallback(err => {
+              const entity = ohm.entityClasses.Group.create(groups[0]);
+              entity.save().asCallback(err => {
                 expect(err).to.be.an.instanceof(ohm.e.EntityConflictError);
                 expect(err).to.have.deep.property('extra.type', 'group');
                 expect(err).to.have.deep.property('extra.attrName', 'value');
