@@ -133,14 +133,14 @@ describe('hw-redis-ohm', () => {
             expect(err).to.be.an.instanceof(ohm.e.RedisOhmError);
             expect(err).to.have.property('name', 'RedisOhmError');
             expect(err).to.have.property('message',
-              'redis error "ReplyError: EXECABORT Transaction discarded because of previous errors."'
+              'redis error "ReplyError: ERR wrong number of arguments for \'hmset\' command"'
             );
-            expect(err).to.have.deep.property('extra.redisError.errors[0].message',
+            expect(err).to.have.deep.property('extra.redisError[0].message',
               'ERR wrong number of arguments for \'hmset\' command'
             );
             expect(err.toString()).to
               .equal('RedisOhmError: redis error ' +
-                '"ReplyError: EXECABORT Transaction discarded because of previous errors."'
+                '"ReplyError: ERR wrong number of arguments for \'hmset\' command"'
               );
           });
       });
